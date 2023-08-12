@@ -21,6 +21,11 @@ class Auth < Roda
     login_route "sign-in"
     jwt_refresh_route "refresh-token"
 
+    jwt_session_hash do
+      h = super()
+      h.merge(public_id: account[:public_id])
+    end
+
     before_create_account do
       unless full_name = param_or_nil("full_name")
         throw_error_status(422, "full_name", "must be present")
