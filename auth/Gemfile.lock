@@ -1,19 +1,31 @@
 GEM
   remote: https://rubygems.org/
   specs:
+    bcrypt (3.1.19)
+    dotenv (2.8.1)
     nio4r (2.5.9)
+    pg (1.5.3)
     puma (6.3.0)
       nio4r (~> 2.0)
     rack (3.0.8)
     roda (3.70.0)
       rack
+    rodauth (2.30.0)
+      roda (>= 2.6.0)
+      sequel (>= 4)
+    sequel (5.71.0)
 
 PLATFORMS
   x86_64-linux
 
 DEPENDENCIES
+  bcrypt
+  dotenv
+  pg
   puma
   roda
+  rodauth
+  sequel
 
 BUNDLED WITH
    2.4.10

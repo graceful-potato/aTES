@@ -1,0 +1,24 @@
+# frozen_string_literal: true
+
+require "dotenv/load"
+require "sequel"
+
+namespace :db do
+  desc "Setup database"
+  task :setup do
+    sh "psql -U postgres -c \"CREATE USER #{ENV["DATABASE_USER"]} PASSWORD '#{ENV["DATABASE_PASS"]}'\""
+    sh "createdb -U postgres -O #{ENV["DATABASE_NAME"]} #{ENV["DATABASE_NAME"]}"
+    sh "psql -U postgres -c \"CREATE EXTENSION citext\" #{ENV["DATABASE_USER"]}"
+
+    Sequel.extension :migration
+    Sequel.connect(ENV["DATABASE_URL"]) do |db|
+      Sequel::Migrator.run(db, "db/migrations")
+    end
+  end
+
+  desc "Drop database"
+  task :drop do
+    sh "dropdb -U postgres #{ENV["DATABASE_NAME"]}"
+    sh "dropuser -U postgres #{ENV["DATABASE_USER"]}"
+  end
+end
