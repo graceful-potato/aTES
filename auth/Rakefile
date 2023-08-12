@@ -21,4 +21,9 @@ namespace :db do
     sh "dropdb -U postgres #{ENV["DATABASE_NAME"]}"
     sh "dropuser -U postgres #{ENV["DATABASE_USER"]}"
   end
+
+  desc "Seed database"
+  task :seed do
+    require_relative "db/seed"
+  end
 end

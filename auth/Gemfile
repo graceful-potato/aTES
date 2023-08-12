@@ -7,5 +7,7 @@ gem "roda"
 gem "pg"
 gem "sequel"
 gem "rodauth"
+gem "jwt"
 gem "bcrypt"
+gem "rake"
 gem "dotenv", groups: [:development, :test]

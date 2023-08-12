@@ -2,6 +2,7 @@
 
 require "roda"
 require_relative "db/connection"
+require_relative "app/models/account"
 
 class Auth < Roda
   plugin :json
@@ -32,8 +33,66 @@ class Auth < Roda
     r.rodauth
     rodauth.require_authentication
 
-    r.root do
-      { message: "hello" }
+    r.on "accounts" do
+      if current_account.role != "admin"
+        r.halt(403,
+               { "Content-Type" => "application/json" },
+               '{ "error": "Forbidden" }')
+      end
+
+      r.is do
+        r.get do
+          accounts = Account.all
+          accounts.map do |acc|
+            {
+              id: acc.id,
+              public_id: acc.public_id,
+              email: acc.email,
+              role: acc.role
+            }
+          end
+        end
+      end
+
+      r.is Integer do |id|
+        r.patch do
+          unless acc = Account[id]
+            r.halt(404,
+                  { "Content-Type" => "application/json" },
+                  "{ \"error\": \"Can't find account with id = #{id}\" }")
+          end
+
+          updated_params = r.params.slice("email", "full_name", "role")
+          acc.update(updated_params)
+
+          {
+            id: acc.id,
+            public_id: acc.public_id,
+            email: acc.email,
+            full_name: acc.full_name,
+            role: acc.role
+          }
+        end
+
+        r.delete do
+          unless acc = Account[id]
+            r.halt(404,
+                  { "Content-Type" => "application/json" },
+                  "{ \"error\": \"Can't find account with id = #{id}\" }")
+          end
+
+          DB.transaction do
+            DB[:account_jwt_refresh_keys].where(account_id: id).delete
+            acc.destroy
+          end
+
+          { success: "Account with id = #{id} successfully deleted" }
+        end
+      end
     end
+  end
+
+  def current_account
+    @_current_account ||= Account.find(id: rodauth.session_value)
   end
 end
