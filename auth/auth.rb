@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "roda"
+require "json"
 require_relative "db/connection"
 require_relative "app/models/account"
 
@@ -24,8 +25,23 @@ class Auth < Roda
       unless full_name = param_or_nil("full_name")
         throw_error_status(422, "full_name", "must be present")
       end
-  
+
       account[:full_name] = full_name
+    end
+
+    after_create_account do
+      acc = Account[account[:id]]
+      event = {
+        event_name: "AccountCreated",
+        data: {
+          public_id: acc.public_id,
+          email: acc.email,
+          full_name: acc.full_name,
+          role: acc.role
+        }
+      }
+
+      Producer.call(event.to_json, topic: "accounts-stream")
     end
   end
 
@@ -65,6 +81,18 @@ class Auth < Roda
           updated_params = r.params.slice("email", "full_name", "role")
           acc.update(updated_params)
 
+          event = {
+            event_name: "AccountUpdated",
+            data: {
+              public_id: acc.public_id,
+              email: acc.email,
+              full_name: acc.full_name,
+              role: acc.role
+            }
+          }
+
+          Producer.call(event.to_json, topic: "accounts-stream")
+
           {
             id: acc.id,
             public_id: acc.public_id,
@@ -81,10 +109,19 @@ class Auth < Roda
                   "{ \"error\": \"Can't find account with id = #{id}\" }")
           end
 
+          event = {
+            event_name: "AccountDeleted",
+            data: {
+              public_id: acc.public_id
+            }
+          }
+
           DB.transaction do
             DB[:account_jwt_refresh_keys].where(account_id: id).delete
             acc.destroy
           end
+
+          Producer.call(event.to_json, topic: "accounts-stream")
 
           { success: "Account with id = #{id} successfully deleted" }
         end
