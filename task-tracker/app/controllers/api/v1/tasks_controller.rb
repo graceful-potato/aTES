@@ -39,7 +39,7 @@ class Api::V1::TasksController < ApplicationController
         }
       }
 
-      Producer.call(event.to_json, topic: "tasks-stream")
+      Karafka.producer.produce_sync(topic: "tasks-stream", payload: event.to_json)
 
       render json: @task, status: :created
     else
@@ -62,7 +62,8 @@ class Api::V1::TasksController < ApplicationController
         }
       }
 
-      Producer.call(event.to_json, topic: "tasks-stream")
+      Karafka.producer.produce_sync(topic: "tasks-stream", payload: event.to_json)
+
 
       render json: @task
     else
@@ -83,7 +84,7 @@ class Api::V1::TasksController < ApplicationController
       }
     }
 
-    Producer.call(event.to_json, topic: "tasks-stream")
+    Karafka.producer.produce_sync(topic: "tasks-stream", payload: event.to_json)
 
     @task.destroy
   end
@@ -100,7 +101,7 @@ class Api::V1::TasksController < ApplicationController
         }
       }
   
-      Producer.call(event.to_json, topic: "tasks")
+      Karafka.producer.produce_sync(topic: "tasks", payload: event.to_json)
 
       render json: task
     else
@@ -122,7 +123,8 @@ class Api::V1::TasksController < ApplicationController
         data: tasks_in_progress.map { |task| { public_id: task.public_id, assignee_id: task.assignee_id } }
       }
   
-      Producer.call(event.to_json, topic: "tasks")
+      Karafka.producer.produce_sync(topic: "tasks", payload: event.to_json)
+
     end
 
     render json: tasks_in_progress
