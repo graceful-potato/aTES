@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 2023_08_12_231815) do
+ActiveRecord::Schema[7.0].define(version: 2023_08_13_131644) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -21,7 +21,21 @@ ActiveRecord::Schema[7.0].define(version: 2023_08_12_231815) do
     t.string "role"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.index ["public_id"], name: "index_accounts_on_public_id"
+    t.index ["public_id"], name: "index_accounts_on_public_id", unique: true
   end
 
+  create_table "tasks", force: :cascade do |t|
+    t.uuid "public_id", default: -> { "gen_random_uuid()" }
+    t.text "description"
+    t.datetime "completed_at"
+    t.uuid "assignee_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.integer "fee"
+    t.integer "reward"
+    t.index ["assignee_id"], name: "index_tasks_on_assignee_id"
+    t.index ["public_id"], name: "index_tasks_on_public_id", unique: true
+  end
+
+  add_foreign_key "tasks", "accounts", column: "assignee_id", primary_key: "public_id"
 end
