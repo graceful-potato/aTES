@@ -4,6 +4,7 @@ require "roda"
 require "json"
 require_relative "db/connection"
 require_relative "app/models/account"
+require_relative "app/services/producer"
 
 class Auth < Roda
   plugin :json
@@ -22,8 +23,9 @@ class Auth < Roda
     jwt_refresh_route "refresh-token"
 
     jwt_session_hash do
+      acc = Account[account[:id]]
       h = super()
-      h.merge(public_id: account[:public_id])
+      h.merge(public_id: acc.public_id)
     end
 
     before_create_account do
