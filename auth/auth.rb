@@ -3,8 +3,8 @@
 require "roda"
 require "json"
 require_relative "db/connection"
+require_relative "lib/kafka_producer"
 require_relative "app/models/account"
-require_relative "app/services/producer"
 
 class Auth < Roda
   plugin :json
@@ -48,7 +48,7 @@ class Auth < Roda
         }
       }
 
-      Producer.call(event.to_json, topic: "accounts-stream")
+      KafkaProducer.produce_sync(topic: "accounts-stream", payload: event.to_json)
     end
   end
 
@@ -98,7 +98,7 @@ class Auth < Roda
             }
           }
 
-          Producer.call(event.to_json, topic: "accounts-stream")
+          KafkaProducer.produce_sync(topic: "accounts-stream", payload: event.to_json)
 
           {
             id: acc.id,
@@ -128,7 +128,7 @@ class Auth < Roda
             acc.destroy
           end
 
-          Producer.call(event.to_json, topic: "accounts-stream")
+          KafkaProducer.produce_sync(topic: "accounts-stream", payload: event.to_json)
 
           { success: "Account with id = #{id} successfully deleted" }
         end

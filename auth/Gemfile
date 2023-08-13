@@ -10,4 +10,5 @@ gem "rodauth"
 gem "jwt"
 gem "bcrypt"
 gem "rake"
+gem "waterdrop"
 gem "dotenv", groups: [:development, :test]
