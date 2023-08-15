@@ -4,7 +4,7 @@ require "bcrypt"
 require "json"
 require_relative "connection"
 require_relative "../app/models/account"
-require_relative "../app/services/producer"
+require_relative "../lib/kafka_producer"
 
 acc = Account.create(
   email: "admin@example.com",
@@ -24,4 +24,4 @@ event = {
   }
 }
 
-Producer.call(event.to_json, topic: "accounts-stream")
+KafkaProducer.produce_sync(topic: "accounts-stream", payload: event.to_json)
