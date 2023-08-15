@@ -11,4 +11,5 @@ gem "jwt"
 gem "bcrypt"
 gem "rake"
 gem "waterdrop"
+gem "rackup"
 gem "dotenv", groups: [:development, :test]
