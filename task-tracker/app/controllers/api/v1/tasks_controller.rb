@@ -28,6 +28,7 @@ class Api::V1::TasksController < ApplicationController
 
       data = {
         public_id: @task.public_id,
+        title: @task.title,
         description: @task.description,
         completed_at: @task.completed_at,
         assignee_id: @task.assignee_id,
@@ -69,6 +70,7 @@ class Api::V1::TasksController < ApplicationController
         event_name: "TaskUpdated",
         data: {
           public_id: @task.public_id,
+          title: @task.title,
           description: @task.description
         }
       }
@@ -147,6 +149,6 @@ class Api::V1::TasksController < ApplicationController
   end
 
   def task_params
-    params.require(:task).permit(:description)
+    params.require(:task).permit(:title, :description)
   end
 end
