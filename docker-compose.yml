@@ -46,6 +46,52 @@ services:
       - kafka
       - task-tracker_karafka-server
   
+  accounting:
+    build:
+      context: ./accounting
+    command: bundle exec rails s -p 3002 -b 0.0.0.0
+    tty: true
+    stdin_open: true
+    environment:
+      - DATABASE_HOST=accounting_db
+      - DATABASE_USER=postgres
+      - DATABASE_PASSWORD=strongpass3
+      - DATABASE_NAME=accounting
+      - RAILS_ENV=development
+    volumes:
+      - ./accounting:/app:cached
+      - accounting_bundle:/usr/local/bundle
+    networks:
+      - accounting_net
+      - common_net
+    depends_on:
+      - accounting_db
+      - kafka
+      - accounting_karafka-server
+
+  analytics:
+    build:
+      context: ./analytics
+    command: bundle exec rails s -p 3003 -b 0.0.0.0
+    tty: true
+    stdin_open: true
+    environment:
+      - DATABASE_HOST=analytics_db
+      - DATABASE_USER=postgres
+      - DATABASE_PASSWORD=strongpass4
+      - DATABASE_NAME=analytics
+      - RAILS_ENV=development
+    volumes:
+      - ./analytics:/app:cached
+      - analytics_bundle:/usr/local/bundle
+    networks:
+      - analytics_net
+      - common_net
+    depends_on:
+      - analytics_db
+      - kafka
+      - analytics_karafka-server
+
   task-tracker_karafka-server:
     build:
       context: ./task-tracker
@@ -67,6 +113,48 @@ services:
     depends_on:
       - kafka
 
+  accounting_karafka-server:
+    build:
+      context: ./accounting
+    command: bundle exec karafka server
+    tty: true
+    stdin_open: true
+    environment:
+      - DATABASE_HOST=accounting_db
+      - DATABASE_USER=postgres
+      - DATABASE_PASSWORD=strongpass3
+      - DATABASE_NAME=task_tracker
+      - RAILS_ENV=development
+    volumes:
+      - ./accounting:/app:cached
+      - accounting_bundle:/usr/local/bundle
+    networks:
+      - accounting_net
+      - common_net
+    depends_on:
+      - kafka
+
+  analytics_karafka-server:
+    build:
+      context: ./analytics
+    command: bundle exec karafka server
+    tty: true
+    stdin_open: true
+    environment:
+      - DATABASE_HOST=analytics_db
+      - DATABASE_USER=postgres
+      - DATABASE_PASSWORD=strongpass4
+      - DATABASE_NAME=task_tracker
+      - RAILS_ENV=development
+    volumes:
+      - ./analytics:/app:cached
+      - analytics_bundle:/usr/local/bundle
+    networks:
+      - analytics_net
+      - common_net
+    depends_on:
+      - kafka
+
   auth_db:
     image: postgres:15.4-alpine3.17
     environment:
@@ -84,6 +172,24 @@ services:
       - task-tracker_data:/var/lib/postgresql/data
     networks:
       - task-tracker_net
+
+  accounting_db:
+    image: postgres:15.4-alpine3.17
+    environment:
+      POSTGRES_PASSWORD: strongpass3
+    volumes:
+      - accounting_data:/var/lib/postgresql/data
+    networks:
+      - accounting_net
+
+  analytics_db:
+    image: postgres:15.4-alpine3.17
+    environment:
+      POSTGRES_PASSWORD: strongpass4
+    volumes:
+      - analytics_data:/var/lib/postgresql/data
+    networks:
+      - analytics_net
 
   zookeeper:
     image: confluentinc/cp-zookeeper:7.4.1
@@ -134,14 +240,22 @@ services:
     depends_on:
       - auth
       - task-tracker
+      - accounting
+      - analytics
 
 volumes:
   auth_data:
   auth_bundle:
   task-tracker_data:
   task-tracker_bundle:
+  accounting_data:
+  accounting_bundle:
+  analytics_data:
+  analytics_bundle:
 
 networks:
   common_net:
   auth_net:
   task-tracker_net:
+  accounting_net:
+  analytics_net:

@@ -8,8 +8,6 @@ WORKDIR /app
 
 COPY Gemfile Gemfile.lock ./
 
-ENV RAILS_ENV=production
-
 RUN bundle install
 
 COPY . .
