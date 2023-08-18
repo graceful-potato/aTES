@@ -4,26 +4,34 @@ require "dotenv/load"
 require "sequel"
 
 namespace :db do
-  desc "Setup database"
-  task :setup do
-    sh "psql -U postgres -c \"CREATE USER #{ENV["DATABASE_USER"]} PASSWORD '#{ENV["DATABASE_PASS"]}'\""
-    sh "createdb -U postgres -O #{ENV["DATABASE_NAME"]} #{ENV["DATABASE_NAME"]}"
-    sh "psql -U postgres -c \"CREATE EXTENSION citext\" #{ENV["DATABASE_USER"]}"
+  desc "Create database"
+  task :create do
+    sh "PGPASSWORD=#{ENV["DATABASE_PASSWORD"]} createdb -U #{ENV["DATABASE_USER"]} -h #{ENV["DATABASE_HOST"]} #{ENV["DATABASE_NAME"]}_#{ENV["RACK_ENV"]}"
+    sh "PGPASSWORD=#{ENV["DATABASE_PASSWORD"]} psql -U #{ENV["DATABASE_USER"]} -h #{ENV["DATABASE_HOST"]} -c \"CREATE EXTENSION citext\" #{ENV["DATABASE_NAME"]}_#{ENV["RACK_ENV"]}"
+  end
 
+  desc "Run migrations"
+  task :migrate, [:version] do |t, args|
     Sequel.extension :migration
+    version = args[:version].to_i if args[:version]
     Sequel.connect(ENV["DATABASE_URL"]) do |db|
-      Sequel::Migrator.run(db, "db/migrations")
+      Sequel::Migrator.run(db, "db/migrations", target: version)
     end
   end
 
   desc "Drop database"
   task :drop do
-    sh "dropdb -U postgres #{ENV["DATABASE_NAME"]}"
-    sh "dropuser -U postgres #{ENV["DATABASE_USER"]}"
+    sh "PGPASSWORD=#{ENV["DATABASE_PASSWORD"]} dropdb -U #{ENV["DATABASE_USER"]} -h #{ENV["DATABASE_HOST"]} #{ENV["DATABASE_NAME"]}_#{ENV["RACK_ENV"]}"
   end
 
   desc "Seed database"
   task :seed do
     require_relative "db/seed"
   end
+
+  desc "Setup database"
+  task :setup => [:create, :migrate, :seed]
+
+  desc "Reset databse"
+  task :reset => [:drop, :setup]
 end

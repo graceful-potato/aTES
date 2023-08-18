@@ -1,0 +1,147 @@
+version: '3'
+
+services:
+  auth:
+    build:
+      context: ./auth
+    command: bundle exec rackup -o 0.0.0.0 -p 3000
+    tty: true
+    stdin_open: true
+    environment:
+      - DATABASE_HOST=auth_db
+      - DATABASE_USER=postgres
+      - DATABASE_PASSWORD=strongpass1
+      - DATABASE_NAME=auth
+      - RACK_ENV=development
+    volumes:
+      - ./auth:/app:cached
+      - auth_bundle:/usr/local/bundle
+    networks:
+      - auth_net
+      - common_net
+    depends_on:
+      - auth_db
+      - kafka
+
+  task-tracker:
+    build:
+      context: ./task-tracker
+    command: bundle exec rails s -p 3001 -b 0.0.0.0
+    tty: true
+    stdin_open: true
+    environment:
+      - DATABASE_HOST=task-tracker_db
+      - DATABASE_USER=postgres
+      - DATABASE_PASSWORD=strongpass2
+      - DATABASE_NAME=task_tracker
+      - RAILS_ENV=development
+    volumes:
+      - ./task-tracker:/app:cached
+      - task-tracker_bundle:/usr/local/bundle
+    networks:
+      - task-tracker_net
+      - common_net
+    depends_on:
+      - task-tracker_db
+      - kafka
+      - task-tracker_karafka-server
+  
+  task-tracker_karafka-server:
+    build:
+      context: ./task-tracker
+    command: bundle exec karafka server
+    tty: true
+    stdin_open: true
+    environment:
+      - DATABASE_HOST=task-tracker_db
+      - DATABASE_USER=postgres
+      - DATABASE_PASSWORD=strongpass2
+      - DATABASE_NAME=task_tracker
+      - RAILS_ENV=development
+    volumes:
+      - ./task-tracker:/app:cached
+      - task-tracker_bundle:/usr/local/bundle
+    networks:
+      - task-tracker_net
+      - common_net
+    depends_on:
+      - kafka
+
+  auth_db:
+    image: postgres:15.4-alpine3.17
+    environment:
+      POSTGRES_PASSWORD: strongpass1
+    volumes:
+      - auth_data:/var/lib/postgresql/data
+    networks:
+      - auth_net
+
+  task-tracker_db:
+    image: postgres:15.4-alpine3.17
+    environment:
+      POSTGRES_PASSWORD: strongpass2
+    volumes:
+      - task-tracker_data:/var/lib/postgresql/data
+    networks:
+      - task-tracker_net
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.4.1
+    hostname: zookeeper
+    container_name: zookeeper
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_SERVER_ID: 1
+      ZOOKEEPER_SERVERS: zookeeper:2888:3888
+    networks:
+      - common_net
+
+  kafka:
+    image: confluentinc/cp-kafka:7.4.1
+    hostname: kafka
+    container_name: kafka
+    ports:
+      - "9092:9092"
+      - "9101:9101"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: "zookeeper:2181"
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_CONFLUENT_LICENSE_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_CONFLUENT_BALANCER_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_JMX_PORT: 9101
+      KAFKA_JMX_HOSTNAME: localhost
+    networks:
+      - common_net
+    depends_on:
+      - zookeeper
+
+  nginx:
+    image: nginx:latest
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - common_net
+    depends_on:
+      - auth
+      - task-tracker
+
+volumes:
+  auth_data:
+  auth_bundle:
+  task-tracker_data:
+  task-tracker_bundle:
+
+networks:
+  common_net:
+  auth_net:
+  task-tracker_net:

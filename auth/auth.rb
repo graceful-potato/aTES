@@ -137,6 +137,6 @@ class Auth < Roda
   end
 
   def current_account
-    @_current_account ||= Account.find(id: rodauth.session_value)
+    @_current_account ||= Account[rodauth.session_value]
   end
 end
