@@ -80,7 +80,8 @@ class Api::V1::TasksController < ApplicationController
         data: data
       }
 
-      Karafka.producer.produce_sync(topic: "tasks-stream", payload: event.to_json)
+      encoded_event = AVRO.encode(event, schema_name: "tasks_stream.created")
+      Karafka.producer.produce_sync(topic: "tasks-stream", payload: encoded_event)
 
       # Business event
       event = {
@@ -92,7 +93,8 @@ class Api::V1::TasksController < ApplicationController
         data: data
       }
 
-      Karafka.producer.produce_sync(topic: "tasks-lifecycle", payload: event.to_json)
+      encoded_event = AVRO.encode(event, schema_name: "tasks_lifecycle.added")
+      Karafka.producer.produce_sync(topic: "tasks-lifecycle", payload: encoded_event)
 
       render json: @task, status: :created
     else
@@ -147,14 +149,19 @@ class Api::V1::TasksController < ApplicationController
 
     if task.update(completed_at: Time.current)
       event = {
+        event_id: SecureRandom.uuid,
+        event_version: 1,
+        event_time: DateTime.current,
+        producer: "task-tracker",
         event_name: "TaskCompleted",
         data: {
           public_id: task.public_id,
           completed_at: task.completed_at
         }
       }
-  
-      Karafka.producer.produce_sync(topic: "tasks-lifecycle", payload: event.to_json)
+
+      encoded_event = AVRO.encode(event, schema_name: "tasks_lifecycle.completed")
+      Karafka.producer.produce_sync(topic: "tasks-lifecycle", payload: encoded_event)
 
       render json: task
     else
@@ -172,12 +179,16 @@ class Api::V1::TasksController < ApplicationController
 
     if changes > 0
       event = {
+        event_id: SecureRandom.uuid,
+        event_version: 1,
+        event_time: DateTime.current,
+        producer: "task-tracker",
         event_name: "TasksShuffled",
         data: tasks_in_progress.map { |task| { public_id: task.public_id, assignee_id: task.assignee_id } }
       }
-  
-      Karafka.producer.produce_sync(topic: "tasks-lifecycle", payload: event.to_json)
 
+      encoded_event = AVRO.encode(event, schema_name: "tasks_lifecycle.shuffled")
+      Karafka.producer.produce_sync(topic: "tasks-lifecycle", payload: encoded_event)
     end
 
     render json: tasks_in_progress
