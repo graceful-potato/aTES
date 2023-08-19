@@ -22,6 +22,7 @@ services:
     depends_on:
       - auth_db
       - kafka
+      - schema-registry
 
   task-tracker:
     build:
@@ -44,6 +45,7 @@ services:
     depends_on:
       - task-tracker_db
       - kafka
+      - schema-registry
 
   accounting:
     build:
@@ -66,6 +68,7 @@ services:
     depends_on:
       - accounting_db
       - kafka
+      - schema-registry
 
   analytics:
     build:
@@ -88,6 +91,7 @@ services:
     depends_on:
       - analytics_db
       - kafka
+      - schema-registry
 
   task-tracker_karafka-server:
     build:
@@ -110,6 +114,7 @@ services:
       - common_net
     depends_on:
       - kafka
+      - schema-registry
 
   accounting_karafka-server:
     build:
@@ -132,6 +137,7 @@ services:
       - common_net
     depends_on:
       - kafka
+      - schema-registry
 
   analytics_karafka-server:
     build:
@@ -154,6 +160,7 @@ services:
       - common_net
     depends_on:
       - kafka
+      - schema-registry
 
   auth_db:
     image: postgres:15.4-alpine3.17

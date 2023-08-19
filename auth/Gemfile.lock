@@ -1,9 +1,15 @@
 GEM
   remote: https://rubygems.org/
   specs:
+    avro (1.11.2)
+      multi_json (~> 1.0)
+    avro_turf (1.9.0)
+      avro (>= 1.7.7, < 1.12)
+      excon (~> 0.71)
     bcrypt (3.1.19)
     concurrent-ruby (1.2.2)
     dotenv (2.8.1)
+    excon (0.100.0)
     ffi (1.15.5)
     jwt (2.7.1)
     karafka-core (2.1.1)
@@ -14,6 +20,7 @@ GEM
       mini_portile2 (~> 2.6)
       rake (> 12)
     mini_portile2 (2.8.4)
+    multi_json (1.15.0)
     nio4r (2.5.9)
     pg (1.5.3)
     puma (6.3.0)
@@ -39,6 +46,7 @@ PLATFORMS
   x86_64-linux
 
 DEPENDENCIES
+  avro_turf
   bcrypt
   dotenv
   jwt

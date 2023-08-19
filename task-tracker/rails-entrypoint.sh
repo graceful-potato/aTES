@@ -15,6 +15,11 @@ until nc -z kafka 9092; do
     sleep 1
 done
 
+# Wait for schema registry
+until nc -z schema-registry 8081; do
+  sleep 1
+done
+
 # Create and initilize db when running container first time.
 DATABASE_EXISTS=$(PGPASSWORD=$DATABASE_PASSWORD psql -h "$DATABASE_HOST" -U "$DATABASE_USER" -tAc "SELECT 1 FROM pg_database WHERE datname='${DATABASE_NAME}_${RAILS_ENV}'")
 if [ "$DATABASE_EXISTS" != "1" ]; then

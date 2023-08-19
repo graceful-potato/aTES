@@ -4,6 +4,7 @@ require "bcrypt"
 require "json"
 require_relative "connection"
 require_relative "../app/models/account"
+require_relative "../lib/avro"
 require_relative "../lib/kafka_producer"
 
 acc = Account.create(
@@ -15,6 +16,10 @@ acc = Account.create(
 )
 
 event = {
+  event_id: SecureRandom.uuid,
+  event_version: 1,
+  event_time: Time.now.utc.to_datetime,
+  producer: "auth",
   event_name: "AccountCreated",
   data: {
     public_id: acc.public_id,
@@ -24,4 +29,5 @@ event = {
   }
 }
 
-KafkaProducer.produce_sync(topic: "accounts-stream", payload: event.to_json)
+encoded_event = AVRO.encode(event, schema_name: "accounts_stream.created")
+KafkaProducer.produce_sync(topic: "accounts-stream", payload: encoded_event)

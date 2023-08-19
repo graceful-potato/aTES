@@ -4,7 +4,7 @@
 class AccountChangesConsumer < ApplicationConsumer
   def consume
     messages.each do |message|
-      payload = message.payload
+      payload = AVRO.decode(message.raw_payload)
 
       puts "-" * 80
       puts payload
