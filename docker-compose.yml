@@ -44,8 +44,7 @@ services:
     depends_on:
       - task-tracker_db
       - kafka
-      - task-tracker_karafka-server
-  
+
   accounting:
     build:
       context: ./accounting
@@ -67,7 +66,6 @@ services:
     depends_on:
       - accounting_db
       - kafka
-      - accounting_karafka-server
 
   analytics:
     build:
@@ -90,12 +88,12 @@ services:
     depends_on:
       - analytics_db
       - kafka
-      - analytics_karafka-server
 
   task-tracker_karafka-server:
     build:
       context: ./task-tracker
     command: bundle exec karafka server
+    entrypoint: [ "./kafka_server-entrypoint.sh" ]
     tty: true
     stdin_open: true
     environment:
@@ -117,6 +115,7 @@ services:
     build:
       context: ./accounting
     command: bundle exec karafka server
+    entrypoint: [ "./kafka_server-entrypoint.sh" ]
     tty: true
     stdin_open: true
     environment:
@@ -138,6 +137,7 @@ services:
     build:
       context: ./analytics
     command: bundle exec karafka server
+    entrypoint: [ "./kafka_server-entrypoint.sh" ]
     tty: true
     stdin_open: true
     environment:
