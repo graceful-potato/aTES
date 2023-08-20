@@ -26,6 +26,29 @@ class TaskConsumer < ApplicationConsumer
           assignee = task.assignee
           assignee.update(balance: assignee.balance - task.fee)
 
+          # --------------------------------------------------------------------
+          # Balance update event
+
+          event = {
+            event_id: SecureRandom.uuid,
+            event_version: 1,
+            event_time: DateTime.current,
+            producer: "accounting",
+            event_name: "AccountBalanceUpdated",
+            data: {
+              public_id: assignee.public_id,
+              balance: assignee.balance
+            }
+          }
+
+          encoded_event = AVRO.encode(event, schema_name: "accounts_stream.balance_updated")
+          Karafka.producer.produce_sync(topic: "accounts-stream", payload: encoded_event)
+          # --------------------------------------------------------------------
+
+
+          # --------------------------------------------------------------------
+          # Auditlog create event
+
           log = AuditLog.create!(account: assignee, task: task, amount: task.fee, event_type: "withdrawal").reload
 
           event = {
@@ -43,9 +66,10 @@ class TaskConsumer < ApplicationConsumer
               created_at: log.created_at
             }
           }
-    
+
           encoded_event = AVRO.encode(event, schema_name: "auditlogs_stream.created")
           Karafka.producer.produce_sync(topic: "auditlogs-stream", payload: encoded_event)
+          # --------------------------------------------------------------------
         end
       when "TaskCompleted"
         ActiveRecord::Base.transaction do
@@ -56,6 +80,28 @@ class TaskConsumer < ApplicationConsumer
           task.update(completed_at: payload["data"]["completed_at"])
           assignee = task.assignee
           assignee.update(balance: assignee.balance + task.reward)
+
+          # --------------------------------------------------------------------
+          # Balance update event
+
+          event = {
+            event_id: SecureRandom.uuid,
+            event_version: 1,
+            event_time: DateTime.current,
+            producer: "accounting",
+            event_name: "AccountBalanceUpdated",
+            data: {
+              public_id: assignee.public_id,
+              balance: assignee.balance
+            }
+          }
+
+          encoded_event = AVRO.encode(event, schema_name: "accounts_stream.balance_updated")
+          Karafka.producer.produce_sync(topic: "accounts-stream", payload: encoded_event)
+          # --------------------------------------------------------------------
+
+          # --------------------------------------------------------------------
+          # Auditlog create event
 
           log = AuditLog.create!(account: assignee, task: task, amount: task.reward, event_type: "deposit").reload
 
@@ -74,9 +120,10 @@ class TaskConsumer < ApplicationConsumer
               created_at: log.created_at
             }
           }
-    
+
           encoded_event = AVRO.encode(event, schema_name: "auditlogs_stream.created")
           Karafka.producer.produce_sync(topic: "auditlogs-stream", payload: encoded_event)
+          # --------------------------------------------------------------------
         end
       when "TasksShuffled"
         # Тут тот же вопрос, что и в TaskCompleted.
@@ -87,6 +134,27 @@ class TaskConsumer < ApplicationConsumer
             task.update(assignee: assignee)
             assignee.update(balance: assignee.balance - task.fee)
 
+            # ------------------------------------------------------------------
+            # Balance update event
+
+            event = {
+              event_id: SecureRandom.uuid,
+              event_version: 1,
+              event_time: DateTime.current,
+              producer: "accounting",
+              event_name: "AccountBalanceUpdated",
+              data: {
+                public_id: assignee.public_id,
+                balance: assignee.balance
+              }
+            }
+
+            encoded_event = AVRO.encode(event, schema_name: "accounts_stream.balance_updated")
+            Karafka.producer.produce_sync(topic: "accounts-stream", payload: encoded_event)
+            # ------------------------------------------------------------------
+
+            # ------------------------------------------------------------------
+            # Auditlog create event
             log = AuditLog.create!(account: assignee, task: task, amount: task.fee, event_type: "withdrawal").reload
 
             event = {
@@ -104,9 +172,11 @@ class TaskConsumer < ApplicationConsumer
                 created_at: log.created_at
               }
             }
-      
+
             encoded_event = AVRO.encode(event, schema_name: "auditlogs_stream.created")
             Karafka.producer.produce_sync(topic: "auditlogs-stream", payload: encoded_event)
+            # ------------------------------------------------------------------
+            # Auditlog create event
           end
         end
       end
