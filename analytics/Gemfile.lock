@@ -90,6 +90,9 @@ GEM
     io-console (0.6.0)
     irb (1.7.4)
       reline (>= 0.3.6)
+    jbuilder (2.11.5)
+      actionview (>= 5.0.0)
+      activesupport (>= 5.0.0)
     jwt (2.7.1)
     karafka (2.1.9)
       karafka-core (>= 2.1.1, < 2.2.0)
@@ -187,6 +190,7 @@ DEPENDENCIES
   avro_turf
   bootsnap
   debug
+  jbuilder
   jwt
   karafka (>= 2.1.2)
   pg (~> 1.1)
