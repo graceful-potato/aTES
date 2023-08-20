@@ -127,7 +127,7 @@ services:
       - DATABASE_HOST=accounting_db
       - DATABASE_USER=postgres
       - DATABASE_PASSWORD=strongpass3
-      - DATABASE_NAME=task_tracker
+      - DATABASE_NAME=accounting
       - RAILS_ENV=development
     volumes:
       - ./accounting:/app:cached
@@ -150,7 +150,7 @@ services:
       - DATABASE_HOST=analytics_db
       - DATABASE_USER=postgres
       - DATABASE_PASSWORD=strongpass4
-      - DATABASE_NAME=task_tracker
+      - DATABASE_NAME=analytics
       - RAILS_ENV=development
     volumes:
       - ./analytics:/app:cached

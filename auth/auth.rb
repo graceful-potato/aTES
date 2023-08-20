@@ -24,9 +24,9 @@ class Auth < Roda
     jwt_refresh_route "refresh-token"
 
     jwt_session_hash do
-      acc = Account[account[:id]]
+      acc = Account[account[:id]] if account
       h = super()
-      h.merge(public_id: acc.public_id)
+      h.merge(public_id: acc.public_id) if acc
     end
 
     before_create_account do

@@ -13,7 +13,7 @@ done
 
 # Wait for rails app
 # TODO: extract port into env variable
-until nc -z task-tracker 3003; do
+until nc -z analytics 3003; do
   sleep 1
 done
 

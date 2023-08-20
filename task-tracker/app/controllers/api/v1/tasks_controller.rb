@@ -148,7 +148,7 @@ class Api::V1::TasksController < ApplicationController
   # end
 
   def complete
-    task = current_account.tasks.find(params[:id])
+    task = current_account.tasks.in_progress.find(params[:id])
 
     if task.update(completed_at: Time.current)
       event = {
