@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 2023_08_20_142718) do
+ActiveRecord::Schema[7.0].define(version: 2023_08_20_160314) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -21,6 +21,7 @@ ActiveRecord::Schema[7.0].define(version: 2023_08_20_142718) do
     t.string "role"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.integer "balance", default: 0, null: false
     t.index ["public_id"], name: "index_accounts_on_public_id", unique: true
   end
 
@@ -46,7 +47,6 @@ ActiveRecord::Schema[7.0].define(version: 2023_08_20_142718) do
     t.uuid "assignee_id"
     t.integer "fee"
     t.integer "reward"
-    t.integer "balance", default: 0, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["assignee_id"], name: "index_tasks_on_assignee_id"

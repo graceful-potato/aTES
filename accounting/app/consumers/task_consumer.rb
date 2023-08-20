@@ -127,9 +127,9 @@ class TaskConsumer < ApplicationConsumer
       when "TasksShuffled"
         # Тут тот же вопрос, что и в TaskCompleted.
         ActiveRecord::Base.transaction do
-          payload["data"].each do |task|
-            task = Task.find_by!(public_id: task["public_id"])
-            assignee = Account.find_or_create_by(public_id: task["assignee_id"])
+          payload["data"].each do |t|
+            task = Task.find_by!(public_id: t["public_id"])
+            assignee = Account.find_or_create_by(public_id: t["assignee_id"])
             task.update(assignee: assignee)
             assignee.update(balance: assignee.balance - task.fee)
 
@@ -175,7 +175,6 @@ class TaskConsumer < ApplicationConsumer
             encoded_event = AVRO.encode(event, schema_name: "auditlogs_stream.created")
             Karafka.producer.produce_sync(topic: "auditlogs-stream", payload: encoded_event)
             # ------------------------------------------------------------------
-            # Auditlog create event
           end
         end
       end

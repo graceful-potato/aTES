@@ -22,6 +22,9 @@ class AccountConsumer < ApplicationConsumer
         account.update(email: payload["data"]["email"],
                        full_name: payload["data"]["full_name"],
                        role: payload["data"]["role"])
+      when "AccountBalanceUpdated"
+        account = Account.find_or_create_by(public_id: payload["data"]["public_id"])
+        account.update(balance: payload["data"]["balance"])
       when "AccountDeleted"
         account = Account.find_by(public_id: payload["data"]["public_id"])
         account.destroy if account
