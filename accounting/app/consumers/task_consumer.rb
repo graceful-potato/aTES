@@ -1,6 +1,5 @@
 # frozen_string_literal: true
 
-# Example consumer that prints messages payloads
 class TaskConsumer < ApplicationConsumer
   def consume
     messages.each do |message|
