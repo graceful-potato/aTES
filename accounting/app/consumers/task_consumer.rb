@@ -12,17 +12,22 @@ class TaskConsumer < ApplicationConsumer
       case payload["event_name"]
       when "TaskAdded"
         ActiveRecord::Base.transaction do
-          task = Task.create!(public_id: payload["data"]["public_id"],
-                             title: payload["data"]["title"],
-                             jira_id: payload["data"]["jira_id"],
-                             description: payload["data"]["description"],
-                             completed_at: payload["data"]["completed_at"],
-                             assignee_id: payload["data"]["assignee_id"],
-                             fee: payload["data"]["fee"],
-                             reward: payload["data"]["reward"],
-                             created_at: payload["data"]["created_at"])
+          # Есть вероятность, что новая ивент добавленной таски придет раньше ивента
+          # создания пользователя, на которого она назначена. Поэтому можем создать
+          # заглушку для аккаунта, в которую потом попадут реальные данные пользователя.
+          assignee = Account.find_or_create_by(public_id: payload["data"]["assignee_id"])
+          task = Task.find_or_initialize_by(public_id: payload["data"]["public_id"]).tap do |t|
+            t.title = t.title || payload["data"]["title"]
+            t.jira_id = t.jira_id || payload["data"]["jira_id"]
+            t.description = t.description || payload["data"]["description"]
+            t.completed_at = t.completed_at || payload["data"]["completed_at"]
+            t.assignee = assignee
+            t.fee = t.fee || payload["data"]["fee"]
+            t.reward = t.reward || payload["data"]["reward"]
+            t.created_at = t.created_at || payload["data"]["created_at"]
+            t.save
+          end
 
-          assignee = task.assignee
           assignee.update(balance: assignee.balance - task.fee)
 
           # --------------------------------------------------------------------
@@ -72,12 +77,15 @@ class TaskConsumer < ApplicationConsumer
         end
       when "TaskCompleted"
         ActiveRecord::Base.transaction do
-          # Вопрос. Возможно стоит в TaskCompleted ивент класть reward поле?
-          # С reward полем мы сможем создать "заглушку" таски если например по
-          # какой-то причине мы получаем ивент TaskCompleted перед TaskAdded.
-          task = Task.find_by!(public_id: payload["data"]["public_id"])
-          task.update(completed_at: payload["data"]["completed_at"])
-          assignee = task.assignee
+          # При обработке этого ивента так же учитываем, что на момент получения у нас
+          # может не быть ни таски ни аккаунта
+          assignee = Account.find_or_create_by(public_id: payload["data"]["assignee_id"])
+          task = Task.find_or_create_by(public_id: payload["data"]["public_id"]) do |t|
+            t.reward = payload["data"]["reward"]
+            t.completed_at = payload["data"]["completed_at"]
+            t.assignee = assignee
+          end
+
           assignee.update(balance: assignee.balance + task.reward)
 
           # --------------------------------------------------------------------
@@ -125,14 +133,18 @@ class TaskConsumer < ApplicationConsumer
           # --------------------------------------------------------------------
         end
       when "TasksShuffled"
-        # Тут тот же вопрос, что и в TaskCompleted.
+        # Тут то же самое. Обрабатывает так, как будто у нас может не быть ни таски
+        # ни аккаунта
         ActiveRecord::Base.transaction do
-          payload["data"].each do |t|
-            task = Task.find_by!(public_id: t["public_id"])
-            assignee = Account.find_or_create_by(public_id: t["assignee_id"])
+          payload["data"].each do |task_hash|
+            assignee = Account.find_or_create_by(public_id: task_hash["assignee_id"])
+
+            task = Task.find_or_create_by(public_id: task_hash["public_id"]) do |t|
+              t.fee = task_hash["fee"]
+            end
+
             task.update(assignee: assignee)
             assignee.update(balance: assignee.balance - task.fee)
-
             # ------------------------------------------------------------------
             # Balance update event
 

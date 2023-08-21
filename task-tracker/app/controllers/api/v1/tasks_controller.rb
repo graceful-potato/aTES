@@ -159,6 +159,8 @@ class Api::V1::TasksController < ApplicationController
         event_name: "TaskCompleted",
         data: {
           public_id: task.public_id,
+          assignee_id: task.assignee_id,
+          reward: task.reward,
           completed_at: task.completed_at
         }
       }
@@ -177,8 +179,18 @@ class Api::V1::TasksController < ApplicationController
       return render json: { error: "Forbidden" }, status: :forbidden
     end
 
-    tasks_in_progress = Task.in_progress
-    changes = tasks_in_progress.update_all("assignee_id = (SELECT public_id FROM accounts WHERE role='worker' ORDER BY RANDOM() LIMIT 1)")
+    tasks_in_progress = Task.in_progress    
+    changes = Task.update_all <<~SQL
+      assignee_id = sub.assignee_id
+      FROM (
+        SELECT DISTINCT ON (tasks.public_id) tasks.public_id, accounts.public_id
+        FROM tasks
+        JOIN accounts ON true
+        WHERE tasks.completed_at IS NULL AND accounts.role = 'worker'
+        ORDER BY tasks.public_id, RANDOM()
+      ) AS sub(task_public_id, assignee_id)
+      WHERE tasks.public_id = sub.task_public_id
+    SQL
 
     if changes > 0
       event = {
@@ -187,7 +199,13 @@ class Api::V1::TasksController < ApplicationController
         event_time: DateTime.current,
         producer: "task-tracker",
         event_name: "TasksShuffled",
-        data: tasks_in_progress.map { |task| { public_id: task.public_id, assignee_id: task.assignee_id } }
+        data: tasks_in_progress.map do |task|
+          {
+            public_id: task.public_id,
+            assignee_id: task.assignee_id,
+            fee: task.fee
+          }
+        end
       }
 
       encoded_event = AVRO.encode(event, schema_name: "tasks_lifecycle.shuffled")

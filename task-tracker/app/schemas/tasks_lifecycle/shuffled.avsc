@@ -49,6 +49,10 @@
                 "type": "string",
                 "logicalType": "uuid"
               }
+            },
+            {
+              "name": "fee",
+              "type": "int"
             }
           ]
         }

@@ -11,25 +11,37 @@ class TaskConsumer < ApplicationConsumer
 
       case payload["event_name"]
       when "TaskAdded"
-        Task.create!(public_id: payload["data"]["public_id"],
-                     title: payload["data"]["title"],
-                     jira_id: payload["data"]["jira_id"],
-                     description: payload["data"]["description"],
-                     completed_at: payload["data"]["completed_at"],
-                     assignee_id: payload["data"]["assignee_id"],
-                     fee: payload["data"]["fee"],
-                     reward: payload["data"]["reward"],
-                     created_at: payload["data"]["created_at"])
+        assignee = Account.find_or_create_by(public_id: payload["data"]["assignee_id"])
+        task = Task.find_or_initialize_by(public_id: payload["data"]["public_id"]).tap do |t|
+          t.title = t.title || payload["data"]["title"]
+          t.jira_id = t.jira_id || payload["data"]["jira_id"]
+          t.description = t.description || payload["data"]["description"]
+          t.completed_at = t.completed_at || payload["data"]["completed_at"]
+          t.assignee = assignee
+          t.fee = t.fee || payload["data"]["fee"]
+          t.reward = t.reward || payload["data"]["reward"]
+          t.created_at = t.created_at || payload["data"]["created_at"]
+          t.save
+        end
       when "TaskCompleted"
         ActiveRecord::Base.transaction do
-          task = Task.find_by!(public_id: payload["data"]["public_id"])
-          task.update(completed_at: payload["data"]["completed_at"])
+          assignee = Account.find_or_create_by(public_id: payload["data"]["assignee_id"])
+          task = Task.find_or_create_by(public_id: payload["data"]["public_id"]) do |t|
+            t.reward = payload["data"]["reward"]
+            t.completed_at = payload["data"]["completed_at"]
+            t.assignee = assignee
+          end
         end
       when "TasksShuffled"
         ActiveRecord::Base.transaction do
-          payload["data"].each do |t|
-            task = Task.find_by!(public_id: t["public_id"])
-            task.update(assignee_id: t["assignee_id"])
+          payload["data"].each do |task_hash|
+            assignee = Account.find_or_create_by(public_id: task_hash["assignee_id"])
+
+            task = Task.find_or_create_by(public_id: task_hash["public_id"]) do |t|
+              t.fee = task_hash["fee"]
+            end
+
+            task.update(assignee: assignee)
           end
         end
       end

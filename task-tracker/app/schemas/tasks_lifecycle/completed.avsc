@@ -42,6 +42,17 @@
             }
           },
           {
+            "name": "assignee_id",
+            "type": {
+              "type": "string",
+              "logicalType": "uuid"
+            }
+          },
+          {
+            "name": "reward",
+            "type": "int"
+          },
+          {
             "name": "completed_at",
             "type": {
                 "type": "long",
