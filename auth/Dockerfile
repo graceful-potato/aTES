@@ -12,4 +12,4 @@ RUN bundle install
 
 COPY . .
 
-ENTRYPOINT [ "./docker-entrypoint.sh" ]
+ENTRYPOINT [ "./roda-entrypoint.sh" ]

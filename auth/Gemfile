@@ -13,4 +13,8 @@ gem "rake"
 gem "waterdrop"
 gem "rackup"
 gem "avro_turf"
-gem "dotenv", groups: [:development, :test]
+gem "sidekiq"
+gem "dotenv"
+group :development, :test do
+  gem "debug", platforms: %i[ mri mingw x64_mingw ]
+end

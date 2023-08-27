@@ -161,6 +161,30 @@ services:
     depends_on:
       - kafka
       - schema-registry
+  
+  auth_sidekiq:
+    build:
+      context: ./auth
+    command: bundle exec sidekiq -r ./auth.rb
+    entrypoint: [ "./sidekiq-entrypoint.sh" ]
+    tty: true
+    stdin_open: true
+    environment:
+      - DATABASE_HOST=auth_db
+      - DATABASE_USER=postgres
+      - DATABASE_PASSWORD=strongpass1
+      - DATABASE_NAME=auth
+      - RACK_ENV=development
+    volumes:
+      - ./auth:/app:cached
+      - auth_bundle:/usr/local/bundle
+    networks:
+      - auth_net
+      - common_net
+    depends_on:
+      - auth_db
+      - kafka
+      - schema-registry
 
   auth_db:
     image: postgres:15.4-alpine3.17
@@ -197,6 +221,13 @@ services:
       - analytics_data:/var/lib/postgresql/data
     networks:
       - analytics_net
+
+  redis:
+    image: redis:7.2.0-alpine3.18
+    volumes:
+      - redis_data:/data
+    networks:
+      - common_net
 
   zookeeper:
     image: confluentinc/cp-zookeeper:7.4.1
@@ -273,6 +304,7 @@ volumes:
   accounting_bundle:
   analytics_data:
   analytics_bundle:
+  redis_data:
 
 networks:
   common_net:

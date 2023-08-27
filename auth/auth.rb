@@ -1,11 +1,15 @@
 # frozen_string_literal: true
 
+require "dotenv/load"
+
 require "roda"
 require "json"
 require_relative "db/connection"
 require_relative "lib/kafka_producer"
+require_relative "lib/sidekiq"
 require_relative "lib/avro"
 require_relative "app/models/account"
+require_relative "app/jobs/produce_event_job"
 
 class Auth < Roda
   plugin :json
@@ -54,7 +58,7 @@ class Auth < Roda
       }
 
       encoded_event = AVRO.encode(event, schema_name: "accounts_stream.created")
-      KafkaProducer.produce_sync(topic: "accounts-stream", payload: encoded_event)
+      ProduceEventJob.perform_async(topic: "accounts-stream", payload: encoded_event)
     end
   end
 
@@ -109,7 +113,7 @@ class Auth < Roda
           }
 
           encoded_event = AVRO.encode(event, schema_name: "accounts_stream.updated")
-          KafkaProducer.produce_sync(topic: "accounts-stream", payload: encoded_event)
+          ProduceEventJob.perform_async(topic: "accounts-stream", payload: encoded_event)
 
           {
             id: acc.id,
@@ -144,7 +148,7 @@ class Auth < Roda
           end
 
           encoded_event = AVRO.encode(event, schema_name: "accounts_stream.deleted")
-          KafkaProducer.produce_sync(topic: "accounts-stream", payload: encoded_event)
+          ProduceEventJob.perform_async(topic: "accounts-stream", payload: encoded_event)
 
           { success: "Account with id = #{id} successfully deleted" }
         end
