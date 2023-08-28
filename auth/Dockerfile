@@ -12,4 +12,4 @@ RUN bundle install
 
 COPY . .
 
-ENTRYPOINT [ "./roda-entrypoint.sh" ]
+ENTRYPOINT [ "./app-entrypoint.sh" ]

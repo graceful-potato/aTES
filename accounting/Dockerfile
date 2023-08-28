@@ -12,4 +12,4 @@ RUN bundle install
 
 COPY . .
 
-ENTRYPOINT [ "./rails-entrypoint.sh" ]
+ENTRYPOINT [ "./app-entrypoint.sh" ]

@@ -10,6 +10,11 @@ until PGPASSWORD=$DATABASE_PASSWORD psql -h "$DATABASE_HOST" -U "$DATABASE_USER"
   sleep 1
 done
 
+# Wait for redis
+until nc -z redis 6379; do
+  sleep 1
+done
+
 # Wait for kafka
 until nc -z kafka 9092; do
     sleep 1

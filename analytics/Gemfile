@@ -18,6 +18,8 @@ gem "karafka", ">= 2.1.2"
 
 gem "avro_turf"
 
+gem "sidekiq"
+
 # Build JSON APIs with ease [https://github.com/rails/jbuilder]
 gem "jbuilder"
 
