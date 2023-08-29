@@ -10,7 +10,6 @@ class Payout < ApplicationService
         worker.update(balance: 0)
 
         # TODO: Send email?
-        # Прям реально надо имейл отсылать?
 
         log = AuditLog.create!(account: worker, amount: balance, event_type: "payout").reload
 
@@ -31,7 +30,7 @@ class Payout < ApplicationService
         }
         
         encoded_event = AVRO.encode(event, schema_name: "auditlogs_stream.created")
-        Karafka.producer.produce_sync(topic: "auditlogs-stream", payload: encoded_event)
+        ProduceEventJob.perform_async(topic: "auditlogs-stream", payload: encoded_event)
       end
     end
   end

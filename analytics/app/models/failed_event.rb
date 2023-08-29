@@ -1,0 +1,2 @@
+class FailedEvent < ApplicationRecord
+end

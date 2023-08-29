@@ -25,7 +25,7 @@ class TaskConsumer < ApplicationConsumer
             t.fee = t.fee || payload["data"]["fee"]
             t.reward = t.reward || payload["data"]["reward"]
             t.created_at = t.created_at || payload["data"]["created_at"]
-            t.save
+            t.save!
           end
 
           assignee.update(balance: assignee.balance - task.fee)
@@ -46,7 +46,7 @@ class TaskConsumer < ApplicationConsumer
           }
 
           encoded_event = AVRO.encode(event, schema_name: "accounts_stream.balance_updated")
-          Karafka.producer.produce_sync(topic: "accounts-stream", payload: encoded_event)
+          ProduceEventJob.perform_async(topic: "accounts-stream", payload: encoded_event)
           # --------------------------------------------------------------------
 
 
@@ -72,7 +72,7 @@ class TaskConsumer < ApplicationConsumer
           }
 
           encoded_event = AVRO.encode(event, schema_name: "auditlogs_stream.created")
-          Karafka.producer.produce_sync(topic: "auditlogs-stream", payload: encoded_event)
+          ProduceEventJob.perform_async(topic: "auditlogs-stream", payload: encoded_event)
           # --------------------------------------------------------------------
         end
       when "TaskCompleted"
@@ -104,7 +104,7 @@ class TaskConsumer < ApplicationConsumer
           }
 
           encoded_event = AVRO.encode(event, schema_name: "accounts_stream.balance_updated")
-          Karafka.producer.produce_sync(topic: "accounts-stream", payload: encoded_event)
+          ProduceEventJob.perform_async(topic: "accounts-stream", payload: encoded_event)
           # --------------------------------------------------------------------
 
           # --------------------------------------------------------------------
@@ -129,7 +129,7 @@ class TaskConsumer < ApplicationConsumer
           }
 
           encoded_event = AVRO.encode(event, schema_name: "auditlogs_stream.created")
-          Karafka.producer.produce_sync(topic: "auditlogs-stream", payload: encoded_event)
+          ProduceEventJob.perform_async(topic: "auditlogs-stream", payload: encoded_event)
           # --------------------------------------------------------------------
         end
       when "TasksShuffled"
@@ -161,7 +161,7 @@ class TaskConsumer < ApplicationConsumer
             }
 
             encoded_event = AVRO.encode(event, schema_name: "accounts_stream.balance_updated")
-            Karafka.producer.produce_sync(topic: "accounts-stream", payload: encoded_event)
+            ProduceEventJob.perform_async(topic: "accounts-stream", payload: encoded_event)
             # ------------------------------------------------------------------
 
             # ------------------------------------------------------------------
@@ -185,11 +185,21 @@ class TaskConsumer < ApplicationConsumer
             }
 
             encoded_event = AVRO.encode(event, schema_name: "auditlogs_stream.created")
-            Karafka.producer.produce_sync(topic: "auditlogs-stream", payload: encoded_event)
+            ProduceEventJob.perform_async(topic: "auditlogs-stream", payload: encoded_event)
             # ------------------------------------------------------------------
           end
         end
       end
+    rescue StandardError => e
+      # TODO: Notify developers about exception with bugsnag/sentry
+      FailedEvent.create(topic: message.topic,
+                         event_id: payload["event_id"],
+                         event_version: payload["event_version"],
+                         event_time: payload["event_time"],
+                         producer: payload["producer"],
+                         event_name: payload["event_name"],
+                         error_message: e.full_message,
+                         raw: payload)
     end
   end
 

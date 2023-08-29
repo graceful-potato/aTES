@@ -18,6 +18,16 @@ class AuditLogConsumer < ApplicationConsumer
                          event_type: payload["data"]["event_type"],
                          created_at: payload["data"]["created_at"])
       end
+    rescue StandardError => e
+      # TODO: Notify developers about exception with bugsnag/sentry
+      FailedEvent.create(topic: message.topic,
+                         event_id: payload["event_id"],
+                         event_version: payload["event_version"],
+                         event_time: payload["event_time"],
+                         producer: payload["producer"],
+                         event_name: payload["event_name"],
+                         error_message: e.full_message,
+                         raw: payload)
     end
   end
 

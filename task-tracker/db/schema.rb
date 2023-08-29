@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 2023_08_19_004933) do
+ActiveRecord::Schema[7.0].define(version: 2023_08_29_001413) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -22,6 +22,19 @@ ActiveRecord::Schema[7.0].define(version: 2023_08_19_004933) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["public_id"], name: "index_accounts_on_public_id", unique: true
+  end
+
+  create_table "failed_events", force: :cascade do |t|
+    t.string "topic"
+    t.uuid "event_id"
+    t.integer "event_version"
+    t.datetime "event_time"
+    t.string "producer"
+    t.string "event_name"
+    t.text "error_message"
+    t.jsonb "raw"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
   end
 
   create_table "tasks", force: :cascade do |t|

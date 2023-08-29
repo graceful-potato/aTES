@@ -12,9 +12,9 @@ class AccountConsumer < ApplicationConsumer
       case payload["event_name"]
       when "AccountCreated"
         Account.find_or_create_by(public_id: payload["data"]["public_id"]).tap do |acc|
-          acc.email = payload["data"]["email"] unless acc.email
-          acc.full_name = payload["data"]["full_name"] unless acc.full_name
-          acc.role = payload["data"]["role"] unless acc.role
+          acc.email = acc.email || payload["data"]["email"]
+          acc.full_name = acc.full_name || payload["data"]["full_name"] 
+          acc.role = acc.role || payload["data"]["role"]
           acc.save!
         end
       when "AccountUpdated"
@@ -26,6 +26,16 @@ class AccountConsumer < ApplicationConsumer
         account = Account.find_by(public_id: payload["data"]["public_id"])
         account.destroy if account
       end
+    rescue StandardError => e
+      # TODO: Notify developers about exception with bugsnag/sentry
+      FailedEvent.create(topic: message.topic,
+                         event_id: payload["event_id"],
+                         event_version: payload["event_version"],
+                         event_time: payload["event_time"],
+                         producer: payload["producer"],
+                         event_name: payload["event_name"],
+                         error_message: e.full_message,
+                         raw: payload)
     end
   end
 
