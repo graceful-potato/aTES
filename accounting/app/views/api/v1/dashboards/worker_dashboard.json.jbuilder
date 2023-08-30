@@ -6,19 +6,24 @@ json.account do
   json.balance current_account.balance
 end
 
-json.history @logs do |log|
-  json.date log.created_at
-  json.type log.event_type
-  json.amount log.amount
-  if log.task_id
+json.history @transactions do |transaction|
+  json.date transaction.created_at
+  json.type transaction.kind
+  case transaction.direction
+  when "credit"
+    json.amount transaction.credit
+  when "debit"
+    json.amount transaction.debit
+  end
+  if transaction.task_id
     json.task do
-      json.task_id log.task.public_id
-      json.title log.task.title
-      json.jira_id log.task.jira_id
-      json.description log.task.description
-      json.completed_at log.task.completed_at
-      json.fee log.task.fee
-      json.reward log.task.reward
+      json.task_id transaction.task.public_id
+      json.title transaction.task.title
+      json.jira_id transaction.task.jira_id
+      json.description transaction.task.description
+      json.completed_at transaction.task.completed_at
+      json.fee transaction.task.fee
+      json.reward transaction.task.reward
     end
   end
 end

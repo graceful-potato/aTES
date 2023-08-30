@@ -1,1 +1,1 @@
-json.total_earnings @today_withdrawals + @today_deposits
+json.total_earnings @total

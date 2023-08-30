@@ -2,35 +2,54 @@
 
 class Payout < ApplicationService
   def call
-    Account.workers.each do |worker|
-      balance = worker.balance
-      next if balance <= 0
+    Account.workers.find_each do |worker|
+      prev_billing_cycle = worker.billing_cycles
+                                 .where(":yesterday >= starts_at and :yesterday <= ends_at",
+                                        yesterday: DateTime.current - 1.day).first
+      curr_billing_cycle = worker.current_billing_cycle
+      balance = worker.balance - curr_billing_cycle.balance
+
+      if balance <= 0
+        BillingCycles::Close(prev_billing_cycle) if prev_billing_cycle
+        next
+      end
 
       ActiveRecord::Base.transaction do
-        worker.update(balance: 0)
+        worker.update!(balance: 0)
+        
+        transaction = Transaction.create!(
+          billing_cycle: prev_billing_cycle,
+          account: worker,
+          description: "Payout",
+          debit: balance,
+          direction: "debit",
+          kind: "payout"
+        ).reload
 
-        # TODO: Send email?
-
-        log = AuditLog.create!(account: worker, amount: balance, event_type: "payout").reload
+        BillingCycles::Close(prev_billing_cycle)
 
         event = {
           event_id: SecureRandom.uuid,
           event_version: 1,
           event_time: DateTime.current,
           producer: "accounting",
-          event_name: "AuditLogCreated",
+          event_name: "Paidout",
           data: {
-            public_id: log.public_id,
-            account_id: log.account_id,
-            task_id: nil,
-            amount: log.amount,
-            event_type: log.event_type,
-            created_at: log.created_at
+            public_id: transaction.public_id,
+            billing_cycle_id: transaction.billing_cycle_id
+            account_id: transaction.account_id,
+            description: transaction.description,
+            credit: transaction.credit,
+            debit: transaction.debit,
+            direction: transaction.direction,
+            kind: transaction.kind,
+            created_at: transaction.created_at
           }
         }
-        
-        encoded_event = AVRO.encode(event, schema_name: "auditlogs_stream.created")
-        ProduceEventJob.perform_async(topic: "auditlogs-stream", payload: encoded_event)
+        encoded_event = Base64.encode64(AVRO.encode(event, schema_name: "transactions.paidout"))
+        ProduceEventJob.perform_async("transactions", encoded_event)
+
+        # TODO: Send email?
       end
     end
   end

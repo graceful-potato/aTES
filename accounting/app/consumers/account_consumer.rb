@@ -11,17 +11,27 @@ class AccountConsumer < ApplicationConsumer
 
       case payload["event_name"]
       when "AccountCreated"
-        Account.find_or_create_by(public_id: payload["data"]["public_id"]).tap do |acc|
+        account = Account.find_or_create_by(public_id: payload["data"]["public_id"]).tap do |acc|
           acc.email = acc.email || payload["data"]["email"]
           acc.full_name = acc.full_name || payload["data"]["full_name"] 
           acc.role = acc.role || payload["data"]["role"]
           acc.save!
         end
+
+        if account.role == "worker"
+          BillingCycles::FetchOrCreate.call(account, payload["event_time"].beginning_of_day, payload["event_time"].end_of_day)
+        end
       when "AccountUpdated"
         account = Account.find_or_create_by(public_id: payload["data"]["public_id"])
+        old_role = account.role
+        new_role = payload["data"]["role"]
         account.update(email: payload["data"]["email"],
                        full_name: payload["data"]["full_name"],
                        role: payload["data"]["role"])
+
+        if old_role != new_role && new_role == "worker"
+          BillingCycles::FetchOrCreate.call(account, payload["event_time"].beginning_of_day, payload["event_time"].end_of_day)
+        end
       when "AccountDeleted"
         account = Account.find_by(public_id: payload["data"]["public_id"])
         account.destroy if account

@@ -3,7 +3,8 @@
 class ProduceEventJob
   include Sidekiq::Job
 
-  def perform(topic:, payload:)
-    Karafka.producer.produce_sync(topic: topic, payload: payload)
+  def perform(topic, payload)
+    binary_payload = Base64.decode64(payload)
+    Karafka.producer.produce_sync(topic: topic, payload: binary_payload)
   end
 end

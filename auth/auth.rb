@@ -57,8 +57,8 @@ class Auth < Roda
         }
       }
 
-      encoded_event = AVRO.encode(event, schema_name: "accounts_stream.created")
-      ProduceEventJob.perform_async(topic: "accounts-stream", payload: encoded_event)
+      encoded_event = Base64.encode64(AVRO.encode(event, schema_name: "accounts_stream.created"))
+      ProduceEventJob.perform_async("accounts-stream", encoded_event)
     end
   end
 
@@ -112,8 +112,8 @@ class Auth < Roda
             }
           }
 
-          encoded_event = AVRO.encode(event, schema_name: "accounts_stream.updated")
-          ProduceEventJob.perform_async(topic: "accounts-stream", payload: encoded_event)
+          encoded_event = Base64.encode64(AVRO.encode(event, schema_name: "accounts_stream.updated"))
+          ProduceEventJob.perform_async("accounts-stream", encoded_event)
 
           {
             id: acc.id,
@@ -147,8 +147,8 @@ class Auth < Roda
             acc.destroy
           end
 
-          encoded_event = AVRO.encode(event, schema_name: "accounts_stream.deleted")
-          ProduceEventJob.perform_async(topic: "accounts-stream", payload: encoded_event)
+          encoded_event = Base64.encode64(AVRO.encode(event, schema_name: "accounts_stream.deleted"))
+          ProduceEventJob.perform_async("accounts-stream", encoded_event)
 
           { success: "Account with id = #{id} successfully deleted" }
         end

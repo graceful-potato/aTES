@@ -20,6 +20,10 @@
 # Learn more: http://github.com/javan/whenever
 set :chronic_options, hours24: true
 
-every 1.day, at: "23:30" do
+every 1.day, at: "22:00" do
+  runner "BillingCycles::CreateNext.call"
+end
+
+every 1.day, at: "00:30" do
   runner "Payout.call"
 end

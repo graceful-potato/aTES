@@ -30,49 +30,96 @@ class TaskConsumer < ApplicationConsumer
 
           assignee.update(balance: assignee.balance - task.fee)
 
-          # --------------------------------------------------------------------
-          # Balance update event
+          billing_cycle = BillingCycles::FetchOrCreate.call(
+            assignee,
+            payload["event_time"].beginning_of_day,
+            payload["event_time"].end_of_day
+          )
+
+          if billing_cycle.status == "closed"
+            billing_cycle = BillingCycles::FetchOrCreate.call(
+              assignee,
+              DateTime.current.beginning_of_day,
+              DateTime.current.end_of_day,
+            )
+          end
+
+          transaction = Transaction.create!(
+            billing_cycle: billing_cycle,
+            account: assignee,
+            task: task,
+            description: "Task assign fee",
+            debit: task.fee,
+            direction: "debit",
+            kind: "withdrawal"
+          ).reload
 
           event = {
             event_id: SecureRandom.uuid,
             event_version: 1,
             event_time: DateTime.current,
             producer: "accounting",
-            event_name: "AccountBalanceUpdated",
+            event_name: "Withdrew",
             data: {
-              public_id: assignee.public_id,
-              balance: assignee.balance
+              public_id: transaction.public_id,
+              billing_cycle_id: transaction.billing_cycle_id,
+              account_id: transaction.account_id,
+              task_id: transaction.task_id,
+              description: transaction.description,
+              credit: transaction.credit,
+              debit: transaction.debit,
+              direction: transaction.direction,
+              kind: transaction.kind,
+              created_at: transaction.created_at
             }
           }
 
-          encoded_event = AVRO.encode(event, schema_name: "accounts_stream.balance_updated")
-          ProduceEventJob.perform_async(topic: "accounts-stream", payload: encoded_event)
+          encoded_event = Base64.encode64(AVRO.encode(event, schema_name: "transactions.withdrew"))
+          ProduceEventJob.perform_async("transactions", encoded_event)
+
+          # --------------------------------------------------------------------
+          # Balance update event
+
+          # event = {
+          #   event_id: SecureRandom.uuid,
+          #   event_version: 1,
+          #   event_time: DateTime.current,
+          #   producer: "accounting",
+          #   event_name: "AccountBalanceUpdated",
+          #   data: {
+          #     public_id: assignee.public_id,
+          #     balance: assignee.balance
+          #   }
+          # }
+
+          # encoded_event = Base64.encode64(AVRO.encode(event, schema_name: "accounts_stream.balance_updated"))
+          # ProduceEventJob.perform_async("accounts-stream", encoded_event)
           # --------------------------------------------------------------------
 
 
           # --------------------------------------------------------------------
           # Auditlog create event
 
-          log = AuditLog.create!(account: assignee, task: task, amount: task.fee, event_type: "withdrawal").reload
+          # log = AuditLog.create!(account: assignee, task: task, amount: task.fee, event_type: "withdrawal").reload
 
-          event = {
-            event_id: SecureRandom.uuid,
-            event_version: 1,
-            event_time: DateTime.current,
-            producer: "accounting",
-            event_name: "AuditLogCreated",
-            data: {
-              public_id: log.public_id,
-              account_id: log.account_id,
-              task_id: log.task_id,
-              amount: log.amount,
-              event_type: log.event_type,
-              created_at: log.created_at
-            }
-          }
+          # event = {
+          #   event_id: SecureRandom.uuid,
+          #   event_version: 1,
+          #   event_time: DateTime.current,
+          #   producer: "accounting",
+          #   event_name: "AuditLogCreated",
+          #   data: {
+          #     public_id: log.public_id,
+          #     account_id: log.account_id,
+          #     task_id: log.task_id,
+          #     amount: log.amount,
+          #     event_type: log.event_type,
+          #     created_at: log.created_at
+          #   }
+          # }
 
-          encoded_event = AVRO.encode(event, schema_name: "auditlogs_stream.created")
-          ProduceEventJob.perform_async(topic: "auditlogs-stream", payload: encoded_event)
+          # encoded_event = AVRO.encode(event, schema_name: "auditlogs_stream.created")
+          # ProduceEventJob.perform_async("auditlogs-stream", encoded_event)
           # --------------------------------------------------------------------
         end
       when "TaskCompleted"
@@ -88,48 +135,95 @@ class TaskConsumer < ApplicationConsumer
 
           assignee.update(balance: assignee.balance + task.reward)
 
-          # --------------------------------------------------------------------
-          # Balance update event
+          billing_cycle = BillingCycles::FetchOrCreate.call(
+            assignee,
+            payload["event_time"].beginning_of_day,
+            payload["event_time"].end_of_day
+          )
+
+          if billing_cycle.status == "closed"
+            billing_cycle = BillingCycles::FetchOrCreate.call(
+              assignee,
+              DateTime.current.beginning_of_day,
+              DateTime.current.end_of_day,
+            )
+          end
+
+          transaction = Transaction.create!(
+            billing_cycle: billing_cycle,
+            account: assignee,
+            task: task,
+            description: "Task reward",
+            credit: task.reward,
+            direction: "credit",
+            kind: "deposit"
+          ).reload
 
           event = {
             event_id: SecureRandom.uuid,
             event_version: 1,
             event_time: DateTime.current,
             producer: "accounting",
-            event_name: "AccountBalanceUpdated",
+            event_name: "Deposited",
             data: {
-              public_id: assignee.public_id,
-              balance: assignee.balance
+              public_id: transaction.public_id,
+              billing_cycle_id: transaction.billing_cycle_id,
+              account_id: transaction.account_id,
+              task_id: transaction.task_id,
+              description: transaction.description,
+              credit: transaction.credit,
+              debit: transaction.debit,
+              direction: transaction.direction,
+              kind: transaction.kind,
+              created_at: transaction.created_at
             }
           }
+          encoded_event = Base64.encode64(AVRO.encode(event, schema_name: "transactions.deposited"))
+          ProduceEventJob.perform_async("transactions", encoded_event)
 
-          encoded_event = AVRO.encode(event, schema_name: "accounts_stream.balance_updated")
-          ProduceEventJob.perform_async(topic: "accounts-stream", payload: encoded_event)
+
+          # --------------------------------------------------------------------
+          # Balance update event
+
+          # event = {
+          #   event_id: SecureRandom.uuid,
+          #   event_version: 1,
+          #   event_time: DateTime.current,
+          #   producer: "accounting",
+          #   event_name: "AccountBalanceUpdated",
+          #   data: {
+          #     public_id: assignee.public_id,
+          #     balance: assignee.balance
+          #   }
+          # }
+
+          # encoded_event = Base64.encode64(AVRO.encode(event, schema_name: "accounts_stream.balance_updated"))
+          # ProduceEventJob.perform_async("accounts-stream", encoded_event)
           # --------------------------------------------------------------------
 
           # --------------------------------------------------------------------
           # Auditlog create event
 
-          log = AuditLog.create!(account: assignee, task: task, amount: task.reward, event_type: "deposit").reload
+          # log = AuditLog.create!(account: assignee, task: task, amount: task.reward, event_type: "deposit").reload
 
-          event = {
-            event_id: SecureRandom.uuid,
-            event_version: 1,
-            event_time: DateTime.current,
-            producer: "accounting",
-            event_name: "AuditLogCreated",
-            data: {
-              public_id: log.public_id,
-              account_id: log.account_id,
-              task_id: log.task_id,
-              amount: log.amount,
-              event_type: log.event_type,
-              created_at: log.created_at
-            }
-          }
+          # event = {
+          #   event_id: SecureRandom.uuid,
+          #   event_version: 1,
+          #   event_time: DateTime.current,
+          #   producer: "accounting",
+          #   event_name: "AuditLogCreated",
+          #   data: {
+          #     public_id: log.public_id,
+          #     account_id: log.account_id,
+          #     task_id: log.task_id,
+          #     amount: log.amount,
+          #     event_type: log.event_type,
+          #     created_at: log.created_at
+          #   }
+          # }
 
-          encoded_event = AVRO.encode(event, schema_name: "auditlogs_stream.created")
-          ProduceEventJob.perform_async(topic: "auditlogs-stream", payload: encoded_event)
+          # encoded_event = Base64.encode64(AVRO.encode(event, schema_name: "auditlogs_stream.created"))
+          # ProduceEventJob.perform_async("auditlogs-stream", encoded_event)
           # --------------------------------------------------------------------
         end
       when "TasksShuffled"
@@ -145,47 +239,93 @@ class TaskConsumer < ApplicationConsumer
 
             task.update(assignee: assignee)
             assignee.update(balance: assignee.balance - task.fee)
-            # ------------------------------------------------------------------
-            # Balance update event
 
+            billing_cycle = BillingCycles::FetchOrCreate.call(
+              assignee,
+              payload["event_time"].beginning_of_day,
+              payload["event_time"].end_of_day
+            )
+
+            if billing_cycle.status == "closed"
+              billing_cycle = BillingCycles::FetchOrCreate.call(
+                assignee,
+                DateTime.current.beginning_of_day,
+                DateTime.current.end_of_day,
+              )
+            end
+
+            transaction = Transaction.create!(
+              billing_cycle: billing_cycle,
+              account: assignee,
+              task: task,
+              description: "Task assign fee",
+              debit: task.fee,
+              direction: "debit",
+              kind: "withdrawal"
+            ).reload
+  
             event = {
               event_id: SecureRandom.uuid,
               event_version: 1,
               event_time: DateTime.current,
               producer: "accounting",
-              event_name: "AccountBalanceUpdated",
+              event_name: "Withdrew",
               data: {
-                public_id: assignee.public_id,
-                balance: assignee.balance
+                public_id: transaction.public_id,
+                billing_cycle_id: transaction.billing_cycle_id,
+                account_id: transaction.account_id,
+                task_id: transaction.task_id,
+                description: transaction.description,
+                credit: transaction.credit,
+                debit: transaction.debit,
+                direction: transaction.direction,
+                kind: transaction.kind,
+                created_at: transaction.created_at
               }
             }
+            encoded_event = Base64.encode64(AVRO.encode(event, schema_name: "transactions.withdrew"))
+            ProduceEventJob.perform_async("transactions", encoded_event)
+            # ------------------------------------------------------------------
+            # Balance update event
 
-            encoded_event = AVRO.encode(event, schema_name: "accounts_stream.balance_updated")
-            ProduceEventJob.perform_async(topic: "accounts-stream", payload: encoded_event)
+            # event = {
+            #   event_id: SecureRandom.uuid,
+            #   event_version: 1,
+            #   event_time: DateTime.current,
+            #   producer: "accounting",
+            #   event_name: "AccountBalanceUpdated",
+            #   data: {
+            #     public_id: assignee.public_id,
+            #     balance: assignee.balance
+            #   }
+            # }
+
+            # encoded_event = Base64.encode64(AVRO.encode(event, schema_name: "accounts_stream.balance_updated"))
+            # ProduceEventJob.perform_async("accounts-stream", encoded_event)
             # ------------------------------------------------------------------
 
             # ------------------------------------------------------------------
             # Auditlog create event
-            log = AuditLog.create!(account: assignee, task: task, amount: task.fee, event_type: "withdrawal").reload
+            # log = AuditLog.create!(account: assignee, task: task, amount: task.fee, event_type: "withdrawal").reload
 
-            event = {
-              event_id: SecureRandom.uuid,
-              event_version: 1,
-              event_time: DateTime.current,
-              producer: "accounting",
-              event_name: "AuditLogCreated",
-              data: {
-                public_id: log.public_id,
-                account_id: log.account_id,
-                task_id: log.task_id,
-                amount: log.amount,
-                event_type: log.event_type,
-                created_at: log.created_at
-              }
-            }
+            # event = {
+            #   event_id: SecureRandom.uuid,
+            #   event_version: 1,
+            #   event_time: DateTime.current,
+            #   producer: "accounting",
+            #   event_name: "AuditLogCreated",
+            #   data: {
+            #     public_id: log.public_id,
+            #     account_id: log.account_id,
+            #     task_id: log.task_id,
+            #     amount: log.amount,
+            #     event_type: log.event_type,
+            #     created_at: log.created_at
+            #   }
+            # }
 
-            encoded_event = AVRO.encode(event, schema_name: "auditlogs_stream.created")
-            ProduceEventJob.perform_async(topic: "auditlogs-stream", payload: encoded_event)
+            # encoded_event = Base64.encode64(AVRO.encode(event, schema_name: "auditlogs_stream.created"))
+            # ProduceEventJob.perform_async("auditlogs-stream", encoded_event)
             # ------------------------------------------------------------------
           end
         end
