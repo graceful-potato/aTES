@@ -6,5 +6,5 @@ class Transaction < ApplicationRecord
 
   belongs_to :billing_cycle, primary_key: "public_id"
   belongs_to :account, primary_key: "public_id"
-  belongs_to :task, primary_key: "public_id"
+  belongs_to :task, primary_key: "public_id", optional: true
 end

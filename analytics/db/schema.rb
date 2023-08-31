@@ -25,19 +25,6 @@ ActiveRecord::Schema[7.0].define(version: 2023_08_30_205159) do
     t.index ["public_id"], name: "index_accounts_on_public_id", unique: true
   end
 
-  create_table "audit_logs", force: :cascade do |t|
-    t.uuid "public_id"
-    t.uuid "account_id"
-    t.uuid "task_id"
-    t.integer "amount"
-    t.string "event_type"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.index ["account_id"], name: "index_audit_logs_on_account_id"
-    t.index ["public_id"], name: "index_audit_logs_on_public_id", unique: true
-    t.index ["task_id"], name: "index_audit_logs_on_task_id"
-  end
-
   create_table "billing_cycles", force: :cascade do |t|
     t.uuid "public_id"
     t.uuid "account_id", null: false
@@ -96,8 +83,6 @@ ActiveRecord::Schema[7.0].define(version: 2023_08_30_205159) do
     t.index ["task_id"], name: "index_transactions_on_task_id"
   end
 
-  add_foreign_key "audit_logs", "accounts", primary_key: "public_id"
-  add_foreign_key "audit_logs", "tasks", primary_key: "public_id"
   add_foreign_key "billing_cycles", "accounts", primary_key: "public_id"
   add_foreign_key "tasks", "accounts", column: "assignee_id", primary_key: "public_id"
   add_foreign_key "transactions", "accounts", primary_key: "public_id"
