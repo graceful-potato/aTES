@@ -22,6 +22,7 @@ services:
     depends_on:
       - auth_db
       - kafka
+      - schema-registry
 
   task-tracker:
     build:
@@ -44,6 +45,7 @@ services:
     depends_on:
       - task-tracker_db
       - kafka
+      - schema-registry
 
   accounting:
     build:
@@ -66,6 +68,7 @@ services:
     depends_on:
       - accounting_db
       - kafka
+      - schema-registry
 
   analytics:
     build:
@@ -88,12 +91,13 @@ services:
     depends_on:
       - analytics_db
       - kafka
+      - schema-registry
 
   task-tracker_karafka-server:
     build:
       context: ./task-tracker
     command: bundle exec karafka server
-    entrypoint: [ "./kafka_server-entrypoint.sh" ]
+    entrypoint: [ "./service-entrypoint.sh" ]
     tty: true
     stdin_open: true
     environment:
@@ -110,19 +114,20 @@ services:
       - common_net
     depends_on:
       - kafka
+      - schema-registry
 
   accounting_karafka-server:
     build:
       context: ./accounting
     command: bundle exec karafka server
-    entrypoint: [ "./kafka_server-entrypoint.sh" ]
+    entrypoint: [ "./service-entrypoint.sh" ]
     tty: true
     stdin_open: true
     environment:
       - DATABASE_HOST=accounting_db
       - DATABASE_USER=postgres
       - DATABASE_PASSWORD=strongpass3
-      - DATABASE_NAME=task_tracker
+      - DATABASE_NAME=accounting
       - RAILS_ENV=development
     volumes:
       - ./accounting:/app:cached
@@ -132,19 +137,20 @@ services:
       - common_net
     depends_on:
       - kafka
+      - schema-registry
 
   analytics_karafka-server:
     build:
       context: ./analytics
     command: bundle exec karafka server
-    entrypoint: [ "./kafka_server-entrypoint.sh" ]
+    entrypoint: [ "./service-entrypoint.sh" ]
     tty: true
     stdin_open: true
     environment:
       - DATABASE_HOST=analytics_db
       - DATABASE_USER=postgres
       - DATABASE_PASSWORD=strongpass4
-      - DATABASE_NAME=task_tracker
+      - DATABASE_NAME=analytics
       - RAILS_ENV=development
     volumes:
       - ./analytics:/app:cached
@@ -154,6 +160,79 @@ services:
       - common_net
     depends_on:
       - kafka
+      - schema-registry
+
+  auth_sidekiq:
+    build:
+      context: ./auth
+    command: bundle exec sidekiq -r ./auth.rb
+    entrypoint: [ "./service-entrypoint.sh" ]
+    tty: true
+    stdin_open: true
+    environment:
+      - DATABASE_HOST=auth_db
+      - DATABASE_USER=postgres
+      - DATABASE_PASSWORD=strongpass1
+      - DATABASE_NAME=auth
+      - RACK_ENV=development
+    volumes:
+      - ./auth:/app:cached
+      - auth_bundle:/usr/local/bundle
+    networks:
+      - auth_net
+      - common_net
+    depends_on:
+      - auth_db
+      - kafka
+      - schema-registry
+
+  task-tracker_sidekiq:
+    build:
+      context: ./task-tracker
+    command: bundle exec sidekiq
+    entrypoint: [ "./service-entrypoint.sh" ]
+    tty: true
+    stdin_open: true
+    environment:
+      - DATABASE_HOST=task-tracker_db
+      - DATABASE_USER=postgres
+      - DATABASE_PASSWORD=strongpass2
+      - DATABASE_NAME=task_tracker
+      - RAILS_ENV=development
+    volumes:
+      - ./task-tracker:/app:cached
+      - task-tracker_bundle:/usr/local/bundle
+    networks:
+      - task-tracker_net
+      - common_net
+    depends_on:
+      - task-tracker_db
+      - kafka
+      - schema-registry
+
+  accounting_sidekiq:
+    build:
+      context: ./accounting
+    command: bundle exec sidekiq
+    entrypoint: [ "./service-entrypoint.sh" ]
+    tty: true
+    stdin_open: true
+    environment:
+      - DATABASE_HOST=accounting_db
+      - DATABASE_USER=postgres
+      - DATABASE_PASSWORD=strongpass3
+      - DATABASE_NAME=accounting
+      - RAILS_ENV=development
+    volumes:
+      - ./accounting:/app:cached
+      - accounting_bundle:/usr/local/bundle
+    networks:
+      - accounting_net
+      - common_net
+    depends_on:
+      - accounting_db
+      - kafka
+      - schema-registry
 
   auth_db:
     image: postgres:15.4-alpine3.17
@@ -191,6 +270,13 @@ services:
     networks:
       - analytics_net
 
+  redis:
+    image: redis:7.2.0-alpine3.18
+    volumes:
+      - redis_data:/data
+    networks:
+      - common_net
+
   zookeeper:
     image: confluentinc/cp-zookeeper:7.4.1
     hostname: zookeeper
@@ -224,10 +310,24 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_JMX_PORT: 9101
       KAFKA_JMX_HOSTNAME: localhost
+      KAFKA_CONFLUENT_SCHEMA_REGISTRY_URL: http://schema-registry:8081
     networks:
       - common_net
     depends_on:
       - zookeeper
+
+  schema-registry:
+    image: confluentinc/cp-schema-registry:7.4.1
+    ports:
+      - "8081:8081"
+    environment:
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: "kafka:29092"
+      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
+    networks:
+      - common_net
+    depends_on:
+      - kafka
 
   nginx:
     image: nginx:latest
@@ -252,6 +352,7 @@ volumes:
   accounting_bundle:
   analytics_data:
   analytics_bundle:
+  redis_data:
 
 networks:
   common_net:

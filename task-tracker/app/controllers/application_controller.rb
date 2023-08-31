@@ -3,6 +3,10 @@
 require "json_web_token"
 
 class ApplicationController < ActionController::API
+  rescue_from Avro::IO::AvroTypeError do |exception|
+    render json: { error: "Schema validation error" }, status: 500
+  end
+
   def authenticate_account!
     render json: { error: "Not Authorized" }, status: 401 unless current_account
   end

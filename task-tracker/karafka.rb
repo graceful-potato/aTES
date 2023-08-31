@@ -41,9 +41,9 @@ class KarafkaApp < Karafka::App
       # consumer ExampleConsumer
     # end
 
-    consumer_group :"accounts-consumer" do
+    consumer_group :"task-tracker-group" do
       topic :"accounts-stream" do
-        consumer AccountChangesConsumer
+        consumer AccountConsumer
       end
     end
   end

@@ -14,6 +14,34 @@ class Api::V1::TasksController < ApplicationController
   end
 
   # POST /tasks
+  # Представим, что где-то существуют другие сервисы, которые читают наш ивент создания таски.
+  # Так как от нас хотят увидеть отдельное поле для указания задачи из жира, будет немного странно
+  # дожидаться изменений во всех консьюмерах, перед тем как приступить к выполнению этой таски.
+  # Поэтому на мой взгляд миграция на новую схему должна выглядет так:
+  # 1. Добавляем nullable поле jira_id в бд таск трекера
+  # 2. Меняем код продьюсера что бы в title записывалась строка вида [jira_id] title тем самым для
+  #    остальных серисов ничего не меняется.
+  #    Ивент получится примерно таким:
+  #    {
+  #      event_id: ...,
+  #      event_version: 1,
+  #      event_name: "TaskAdded",
+  #      event_time: ...,
+  #      producer: "task-tracker"
+  #      data: {
+  #        ...
+  #        title: task.jira_id ? "[#{task.jira_id}] #{task.title}" : "#{task.title}",
+  #        ...
+  #      }
+  #    }
+  # 3. Cоздаем новую версию схемы события в которой будет отдельное поле jira_id и уведомляем всех
+  #    консьюмеров этого ивента.
+  # 4. Консьмеры сами решают как обрабатывать новую схему события и стоит ли им вносить изменения в
+  #    схему базы данных. В контексте дз мы добавляем nullable поле jira_id в accounting и analytics
+  #    и переписываем консьюмеры, что бы сохранять jira_id в бд как отдельное поле.
+  # 5. После того как все консьюмеры будут готовы принимать ивент новой версии мы можем начать его
+  #    рассылать, а после того как убедимся что все работает как надо, можно будет удалить продьюсер
+  #    старой версии.
   def create
     unless random_worker = Account.workers.order("RANDOM()").first
       return render json: { error: "No workers to assign"}, status: :unprocessable_entity
@@ -29,6 +57,7 @@ class Api::V1::TasksController < ApplicationController
       data = {
         public_id: @task.public_id,
         title: @task.title,
+        jira_id: @task.jira_id,
         description: @task.description,
         completed_at: @task.completed_at,
         assignee_id: @task.assignee_id,
@@ -39,19 +68,29 @@ class Api::V1::TasksController < ApplicationController
 
       # Stream event
       event = {
+        event_id: SecureRandom.uuid,
+        event_version: 1,
+        event_time: DateTime.current,
+        producer: "task-tracker",
         event_name: "TaskCreated",
         data: data
       }
 
-      Karafka.producer.produce_sync(topic: "tasks-stream", payload: event.to_json)
+      encoded_event = Base64.encode64(AVRO.encode(event, schema_name: "tasks_stream.created"))
+      ProduceEventJob.perform_async("tasks-stream", encoded_event)
 
       # Business event
       event = {
+        event_id: SecureRandom.uuid,
+        event_version: 1,
+        event_time: DateTime.current,
+        producer: "task-tracker",
         event_name: "TaskAdded",
         data: data
       }
 
-      Karafka.producer.produce_sync(topic: "tasks-lifecycle", payload: event.to_json)
+      encoded_event = Base64.encode64(AVRO.encode(event, schema_name: "tasks_lifecycle.added"))
+      ProduceEventJob.perform_async("tasks-lifecycle", encoded_event)
 
       render json: @task, status: :created
     else
@@ -59,61 +98,26 @@ class Api::V1::TasksController < ApplicationController
     end
   end
 
-  # PATCH/PUT /tasks/1
-  def update
-    if current_account.role != "admin"
-      return render json: { error: "Forbidden" }, status: :forbidden
-    end
-
-    if @task.update(task_params)
-      event = {
-        event_name: "TaskUpdated",
-        data: {
-          public_id: @task.public_id,
-          title: @task.title,
-          description: @task.description
-        }
-      }
-
-      Karafka.producer.produce_sync(topic: "tasks-stream", payload: event.to_json)
-
-      render json: @task
-    else
-      render json: @task.errors, status: :unprocessable_entity
-    end
-  end
-
-  # DELETE /tasks/1
-  # def destroy
-  #   if current_account.role != "admin"
-  #     return render json: { error: "Forbidden" }, status: :forbidden
-  #   end
-
-  #   event = {
-  #     event_name: "TaskDeleted",
-  #     data: {
-  #       public_id: @task.public_id
-  #     }
-  #   }
-
-  #   Karafka.producer.produce_sync(topic: "tasks-stream", payload: event.to_json)
-
-  #   @task.destroy
-  # end
-
   def complete
-    task = current_account.tasks.find(params[:id])
+    task = current_account.tasks.in_progress.find(params[:id])
 
     if task.update(completed_at: Time.current)
       event = {
+        event_id: SecureRandom.uuid,
+        event_version: 1,
+        event_time: DateTime.current,
+        producer: "task-tracker",
         event_name: "TaskCompleted",
         data: {
           public_id: task.public_id,
+          assignee_id: task.assignee_id,
+          reward: task.reward,
           completed_at: task.completed_at
         }
       }
-  
-      Karafka.producer.produce_sync(topic: "tasks-lifecycle", payload: event.to_json)
+
+      encoded_event = Base64.encode64(AVRO.encode(event, schema_name: "tasks_lifecycle.completed"))
+      ProduceEventJob.perform_async("tasks-lifecycle", encoded_event)
 
       render json: task
     else
@@ -126,17 +130,37 @@ class Api::V1::TasksController < ApplicationController
       return render json: { error: "Forbidden" }, status: :forbidden
     end
 
-    tasks_in_progress = Task.in_progress
-    changes = tasks_in_progress.update_all("assignee_id = (SELECT public_id FROM accounts WHERE role='worker' ORDER BY RANDOM() LIMIT 1)")
+    tasks_in_progress = Task.in_progress    
+    changes = Task.update_all <<~SQL
+      assignee_id = sub.assignee_id
+      FROM (
+        SELECT DISTINCT ON (tasks.public_id) tasks.public_id, accounts.public_id
+        FROM tasks
+        JOIN accounts ON true
+        WHERE tasks.completed_at IS NULL AND accounts.role = 'worker'
+        ORDER BY tasks.public_id, RANDOM()
+      ) AS sub(task_public_id, assignee_id)
+      WHERE tasks.public_id = sub.task_public_id
+    SQL
 
     if changes > 0
       event = {
+        event_id: SecureRandom.uuid,
+        event_version: 1,
+        event_time: DateTime.current,
+        producer: "task-tracker",
         event_name: "TasksShuffled",
-        data: tasks_in_progress.map { |task| { public_id: task.public_id, assignee_id: task.assignee_id } }
+        data: tasks_in_progress.map do |task|
+          {
+            public_id: task.public_id,
+            assignee_id: task.assignee_id,
+            fee: task.fee
+          }
+        end
       }
-  
-      Karafka.producer.produce_sync(topic: "tasks-lifecycle", payload: event.to_json)
 
+      encoded_event = Base64.encode64(AVRO.encode(event, schema_name: "tasks_lifecycle.shuffled"))
+      ProduceEventJob.perform_async("tasks-lifecycle", encoded_event)
     end
 
     render json: tasks_in_progress
@@ -149,6 +173,6 @@ class Api::V1::TasksController < ApplicationController
   end
 
   def task_params
-    params.require(:task).permit(:title, :description)
+    params.require(:task).permit(:title, :description, :jira_id)
   end
 end

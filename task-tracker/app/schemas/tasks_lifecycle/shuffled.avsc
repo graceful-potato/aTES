@@ -1,0 +1,62 @@
+{
+  "name": "tasks_lifecycle.shuffled",
+  "type": "record",
+  "fields": [
+    {
+      "name": "event_id",
+      "type": {
+        "type": "string",
+        "logicalType": "uuid"
+      }
+    },
+    {
+      "name": "event_version",
+      "type": "int"
+    },
+    {
+      "name": "event_time",
+      "type": {
+        "type": "long",
+        "logicalType": "timestamp-millis"
+      }
+    },
+    {
+      "name": "producer",
+      "type": "string"
+    },
+    {
+      "name": "event_name",
+      "type": "string"
+    },
+    {
+      "name": "data",
+      "type": {
+        "type": "array",
+        "items": {
+          "type": "record",
+          "name": "DataItem",
+          "fields": [
+            {
+              "name": "public_id",
+              "type": {
+                "type": "string",
+                "logicalType": "uuid"
+              }
+            },
+            {
+              "name": "assignee_id",
+              "type": {
+                "type": "string",
+                "logicalType": "uuid"
+              }
+            },
+            {
+              "name": "fee",
+              "type": "int"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

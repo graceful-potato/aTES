@@ -12,4 +12,9 @@ gem "bcrypt"
 gem "rake"
 gem "waterdrop"
 gem "rackup"
-gem "dotenv", groups: [:development, :test]
+gem "avro_turf"
+gem "sidekiq"
+gem "dotenv"
+group :development, :test do
+  gem "debug", platforms: %i[ mri mingw x64_mingw ]
+end

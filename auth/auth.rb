@@ -1,10 +1,15 @@
 # frozen_string_literal: true
 
+require "dotenv/load"
+
 require "roda"
 require "json"
 require_relative "db/connection"
 require_relative "lib/kafka_producer"
+require_relative "lib/sidekiq"
+require_relative "lib/avro"
 require_relative "app/models/account"
+require_relative "app/jobs/produce_event_job"
 
 class Auth < Roda
   plugin :json
@@ -23,9 +28,9 @@ class Auth < Roda
     jwt_refresh_route "refresh-token"
 
     jwt_session_hash do
-      acc = Account[account[:id]]
+      acc = Account[account[:id]] if account
       h = super()
-      h.merge(public_id: acc.public_id)
+      h.merge(public_id: acc.public_id) if acc
     end
 
     before_create_account do
@@ -39,6 +44,10 @@ class Auth < Roda
     after_create_account do
       acc = Account[account[:id]]
       event = {
+        event_id: SecureRandom.uuid,
+        event_version: 1,
+        event_time: Time.now.utc.to_datetime,
+        producer: "auth",
         event_name: "AccountCreated",
         data: {
           public_id: acc.public_id,
@@ -48,7 +57,8 @@ class Auth < Roda
         }
       }
 
-      KafkaProducer.produce_sync(topic: "accounts-stream", payload: event.to_json)
+      encoded_event = Base64.encode64(AVRO.encode(event, schema_name: "accounts_stream.created"))
+      ProduceEventJob.perform_async("accounts-stream", encoded_event)
     end
   end
 
@@ -89,6 +99,10 @@ class Auth < Roda
           acc.update(updated_params)
 
           event = {
+            event_id: SecureRandom.uuid,
+            event_version: 1,
+            event_time: Time.now.utc.to_datetime,
+            producer: "auth",
             event_name: "AccountUpdated",
             data: {
               public_id: acc.public_id,
@@ -98,7 +112,8 @@ class Auth < Roda
             }
           }
 
-          KafkaProducer.produce_sync(topic: "accounts-stream", payload: event.to_json)
+          encoded_event = Base64.encode64(AVRO.encode(event, schema_name: "accounts_stream.updated"))
+          ProduceEventJob.perform_async("accounts-stream", encoded_event)
 
           {
             id: acc.id,
@@ -117,6 +132,10 @@ class Auth < Roda
           end
 
           event = {
+            event_id: SecureRandom.uuid,
+            event_version: 1,
+            event_time: Time.now.utc.to_datetime,
+            producer: "auth",
             event_name: "AccountDeleted",
             data: {
               public_id: acc.public_id
@@ -128,7 +147,8 @@ class Auth < Roda
             acc.destroy
           end
 
-          KafkaProducer.produce_sync(topic: "accounts-stream", payload: event.to_json)
+          encoded_event = Base64.encode64(AVRO.encode(event, schema_name: "accounts_stream.deleted"))
+          ProduceEventJob.perform_async("accounts-stream", encoded_event)
 
           { success: "Account with id = #{id} successfully deleted" }
         end
