@@ -9,25 +9,20 @@ class Api::V1::DashboardsController < ApplicationController
     end
 
     @negative_balances_count = Account.where("balance < 0").count
-    @today_withdrawals = AuditLog.where("created_at >= ? AND created_at <= ?",
-                                        Time.zone.today.beginning_of_day,
-                                        Time.zone.today.end_of_day)
-                                  .where(event_type: "withdrawal")
-                                  .sum(:amount)
-    @today_deposits = AuditLog.where("created_at >= ? AND created_at <= ?",
-                                      Time.zone.today.beginning_of_day,
-                                      Time.zone.today.end_of_day)
-                              .where(event_type: "deposit")
-                              .sum(:amount)
+    @total = Transaction.where("created_at >= ? AND created_at <= ?",
+                               DateTime.current.beginning_of_day,
+                               DateTime.current.end_of_day)
+                        .where(kind: ["withdrawal", "deposit"])
+                        .sum("transactions.credit + transactions.debit")
     
     @from = from
     @to = to
-    @most_expensive_task = AuditLog.where("created_at >= ? AND created_at <= ?", from, to)
-                        .where(event_type: "deposit")
-                        .order(amount: :desc)
-                        .limit(1)
-                        .first
-                        .task
+    @most_expensive_task = Transaction.where("created_at >= ? AND created_at <= ?", from, to)
+                                      .where(kind: "deposit")
+                                      .order(credit: :desc)
+                                      .limit(1)
+                                      .first
+                                      .task
   end
 
   private

@@ -41,8 +41,16 @@ class KarafkaApp < Karafka::App
         consumer TaskConsumer
       end
 
-      topic :"auditlogs-stream" do
-        consumer AuditLogConsumer
+      # topic :"auditlogs-stream" do
+      #   consumer AuditLogConsumer
+      # end
+
+      topic :transactions do
+        consumer TransactionConsumer
+      end
+
+      topic :"billing_cycle-stream" do
+        consumer BillingCycleConsumer
       end
     end
   end
