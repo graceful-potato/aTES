@@ -46,7 +46,7 @@ class Payout < ApplicationService
             created_at: transaction.created_at
           }
         }
-        encoded_event = Base64.encode64(AVRO.encode(event, schema_name: "transactions.paidout"))
+        encoded_event = Base64.encode64(AVRO.encode(event, subject: "transactions.paidout", version: 1))
         ProduceEventJob.perform_async("transactions", encoded_event)
 
         # TODO: Send email?

@@ -29,5 +29,5 @@ event = {
   }
 }
 
-encoded_event = AVRO.encode(event, schema_name: "accounts_stream.created")
+encoded_event = AVRO.encode(event, subject: "accounts_stream.created", version: 1)
 KafkaProducer.produce_sync(topic: "accounts-stream", payload: encoded_event)

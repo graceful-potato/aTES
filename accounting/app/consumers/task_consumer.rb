@@ -74,7 +74,7 @@ class TaskConsumer < ApplicationConsumer
             }
           }
 
-          encoded_event = Base64.encode64(AVRO.encode(event, schema_name: "transactions.withdrew"))
+          encoded_event = Base64.encode64(AVRO.encode(event, subject: "transactions.withdrew", version: 1))
           ProduceEventJob.perform_async("transactions", encoded_event)
         end
       when "TaskCompleted"
@@ -133,7 +133,7 @@ class TaskConsumer < ApplicationConsumer
               created_at: transaction.created_at
             }
           }
-          encoded_event = Base64.encode64(AVRO.encode(event, schema_name: "transactions.deposited"))
+          encoded_event = Base64.encode64(AVRO.encode(event, subject: "transactions.deposited", version: 1))
           ProduceEventJob.perform_async("transactions", encoded_event)
         end
       when "TasksShuffled"
@@ -193,7 +193,7 @@ class TaskConsumer < ApplicationConsumer
                 created_at: transaction.created_at
               }
             }
-            encoded_event = Base64.encode64(AVRO.encode(event, schema_name: "transactions.withdrew"))
+            encoded_event = Base64.encode64(AVRO.encode(event, subject: "transactions.withdrew", version: 1))
             ProduceEventJob.perform_async("transactions", encoded_event)
           end
         end

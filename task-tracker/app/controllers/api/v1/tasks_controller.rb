@@ -76,7 +76,7 @@ class Api::V1::TasksController < ApplicationController
         data: data
       }
 
-      encoded_event = Base64.encode64(AVRO.encode(event, schema_name: "tasks_stream.created"))
+      encoded_event = Base64.encode64(AVRO.encode(event, subject: "tasks_stream.created", version: 1))
       ProduceEventJob.perform_async("tasks-stream", encoded_event)
 
       # Business event
@@ -89,7 +89,7 @@ class Api::V1::TasksController < ApplicationController
         data: data
       }
 
-      encoded_event = Base64.encode64(AVRO.encode(event, schema_name: "tasks_lifecycle.added"))
+      encoded_event = Base64.encode64(AVRO.encode(event, subject: "tasks_lifecycle.added", version: 1))
       ProduceEventJob.perform_async("tasks-lifecycle", encoded_event)
 
       render json: @task, status: :created
@@ -116,7 +116,7 @@ class Api::V1::TasksController < ApplicationController
         }
       }
 
-      encoded_event = Base64.encode64(AVRO.encode(event, schema_name: "tasks_lifecycle.completed"))
+      encoded_event = Base64.encode64(AVRO.encode(event, subject: "tasks_lifecycle.completed", version: 1))
       ProduceEventJob.perform_async("tasks-lifecycle", encoded_event)
 
       render json: task
@@ -159,7 +159,7 @@ class Api::V1::TasksController < ApplicationController
         end
       }
 
-      encoded_event = Base64.encode64(AVRO.encode(event, schema_name: "tasks_lifecycle.shuffled"))
+      encoded_event = Base64.encode64(AVRO.encode(event, subject: "tasks_lifecycle.shuffled", version: 1))
       ProduceEventJob.perform_async("tasks-lifecycle", encoded_event)
     end
 

@@ -22,7 +22,7 @@ class BillingCycles::FetchOrCreate < ApplicationService
           created_at: billing_cycle.created_at
         }
       }
-      encoded_event = Base64.encode64(AVRO.encode(event, schema_name: "billing_cycle_stream.created"))
+      encoded_event = Base64.encode64(AVRO.encode(event, subject: "billing_cycle_stream.created", version: 1))
       ProduceEventJob.perform_async("billing_cycle-stream", encoded_event)
 
       billing_cycle

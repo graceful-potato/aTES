@@ -2,6 +2,4 @@
 
 require "avro_turf/messaging"
 
-AVRO = AvroTurf::Messaging.new(schemas_path: File.expand_path("../../app/schemas", __FILE__),
-                               registry_url: "http://schema-registry:8081/")
-
+AVRO = AvroTurf::Messaging.new(registry_url: "http://nginx:8081/")

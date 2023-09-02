@@ -93,6 +93,26 @@ services:
       - kafka
       - schema-registry
 
+  schema-manager:
+    build:
+      context: ./schema-manager
+    command: ruby main.rb
+    tty: true
+    stdin_open: true
+    environment:
+      # TODO: Extract user and password to env file and use variable here
+      - SCHEMA_REGISTRY_USER=admin
+      - SCHEMA_REGISTRY_PASSWORD=admin
+    volumes:
+      - ./schema-manager:/app:cached
+      - schema-manager_bundle:/usr/local/bundle
+    networks:
+      - common_net
+    depends_on:
+      - kafka
+      - schema-registry
+      - nginx
+
   task-tracker_karafka-server:
     build:
       context: ./task-tracker
@@ -330,11 +350,14 @@ services:
       - kafka
 
   nginx:
-    image: nginx:latest
+    build:
+      context: ./nginx
+      args:
+        # TODO: Extract user and password to env file and use variable here
+        BASIC_AUTH_USER: admin
+        BASIC_AUTH_PASS: admin
     ports:
       - "80:80"
-    volumes:
-      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
     networks:
       - common_net
     depends_on:
@@ -352,6 +375,7 @@ volumes:
   accounting_bundle:
   analytics_data:
   analytics_bundle:
+  schema-manager_bundle:
   redis_data:
 
 networks:
