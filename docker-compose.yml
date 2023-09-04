@@ -21,6 +21,7 @@ services:
       - common_net
     depends_on:
       - auth_db
+      - redis
       - kafka
       - schema-registry
 
@@ -44,6 +45,7 @@ services:
       - common_net
     depends_on:
       - task-tracker_db
+      - redis
       - kafka
       - schema-registry
 
@@ -67,6 +69,7 @@ services:
       - common_net
     depends_on:
       - accounting_db
+      - redis
       - kafka
       - schema-registry
 
@@ -90,6 +93,7 @@ services:
       - common_net
     depends_on:
       - analytics_db
+      - redis
       - kafka
       - schema-registry
 
@@ -133,6 +137,8 @@ services:
       - task-tracker_net
       - common_net
     depends_on:
+      - task-tracker_db
+      - redis
       - kafka
       - schema-registry
 
@@ -156,6 +162,8 @@ services:
       - accounting_net
       - common_net
     depends_on:
+      - accounting_db
+      - redis
       - kafka
       - schema-registry
 
@@ -179,6 +187,8 @@ services:
       - analytics_net
       - common_net
     depends_on:
+      - analytics_db
+      - redis
       - kafka
       - schema-registry
 
@@ -203,6 +213,7 @@ services:
       - common_net
     depends_on:
       - auth_db
+      - redis
       - kafka
       - schema-registry
 
@@ -227,6 +238,7 @@ services:
       - common_net
     depends_on:
       - task-tracker_db
+      - redis
       - kafka
       - schema-registry
 
@@ -251,6 +263,7 @@ services:
       - common_net
     depends_on:
       - accounting_db
+      - redis
       - kafka
       - schema-registry
 
@@ -330,7 +343,7 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_JMX_PORT: 9101
       KAFKA_JMX_HOSTNAME: localhost
-      KAFKA_CONFLUENT_SCHEMA_REGISTRY_URL: http://schema-registry:8081
+      KAFKA_CONFLUENT_SCHEMA_REGISTRY_URL: http://nginx:8081
     networks:
       - common_net
     depends_on:
@@ -338,16 +351,22 @@ services:
 
   schema-registry:
     image: confluentinc/cp-schema-registry:7.4.1
-    ports:
-      - "8081:8081"
     environment:
       SCHEMA_REGISTRY_HOST_NAME: schema-registry
       SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: "kafka:29092"
-      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
+      # Устанавливаем listener на статичный ip внутри hidden сети, что бы
+      # сервисы из common сети не могли воспользоваться api в обход nginx
+      SCHEMA_REGISTRY_LISTENERS: http://10.20.0.123:8081
     networks:
-      - common_net
+      hidden_net:
+        # TODO: Extract static ip to env
+        ipv4_address: 10.20.0.123
+        aliases:
+          - schema-registry-hidden
+      common_net:
     depends_on:
       - kafka
+      - zookeeper
 
   nginx:
     build:
@@ -356,15 +375,19 @@ services:
         # TODO: Extract user and password to env file and use variable here
         BASIC_AUTH_USER: admin
         BASIC_AUTH_PASS: admin
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
     ports:
       - "80:80"
     networks:
+      - hidden_net
       - common_net
     depends_on:
       - auth
       - task-tracker
       - accounting
       - analytics
+      - schema-registry
 
 volumes:
   auth_data:
@@ -384,3 +407,7 @@ networks:
   task-tracker_net:
   accounting_net:
   analytics_net:
+  hidden_net:
+    ipam:
+      config:
+        - subnet: 10.20.0.0/24

@@ -1,6 +1,6 @@
 FROM ruby:3.2.2-alpine3.17
 
-RUN apk --update add build-base tzdata postgresql-dev postgresql-client bash
+RUN apk --update add build-base tzdata postgresql-dev postgresql-client bash curl
 
 RUN mkdir -p /app
 

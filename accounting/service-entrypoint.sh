@@ -17,7 +17,7 @@ until nc -z kafka 9092; do
 done
 
 # Wait for schema registry
-until nc -z schema-registry 8081; do
+until [[ $(curl -s -o /dev/null -w "%{http_code}" http://nginx:8081) -ne "502" ]]; do
   sleep 1
 done
 

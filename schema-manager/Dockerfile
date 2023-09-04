@@ -1,6 +1,6 @@
 FROM ruby:3.2.2-alpine3.17
 
-RUN apk --update add bash
+RUN apk --update add bash curl
 
 RUN mkdir -p /app
 
